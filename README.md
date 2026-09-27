@@ -5,7 +5,7 @@ A Home Assistant integration that schedules and supervises a Mammotion Luba robo
 - It asks before starting and verifies that the job really started.
 - It stops the mower when the weather turns or the light fails.
 
-**Status: development scaffold.** This build installs through HACS, but its setup flow aborts, so it cannot be configured and does nothing. Do not install it expecting a working integration.
+**Status: read-only preview (P1).** This build can be set up. It publishes condition, readiness, window and angle entities, and raises repair issues for broken mower bindings. It never commands the mower, sends notifications or writes to a calendar.
 
 ## Development
 

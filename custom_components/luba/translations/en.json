@@ -2,12 +2,168 @@
   "config": {
     "step": {
       "user": {
-        "title": "Luba Scheduler",
-        "description": "This build is a development scaffold. There is nothing to configure yet, and submitting this form adds nothing."
+        "title": "Mower",
+        "description": "Pick the Mammotion mower. Luba Scheduler finds its activity, battery, RTK, camera and zone entities from the device, so later renames in the Mammotion integration don't break it.",
+        "data": { "mower_device": "Mower" }
+      },
+      "zones": {
+        "title": "Zone groups",
+        "description": "Split the mower's zones into two groups. Each mow day cuts one group, and the groups never share a day.",
+        "data": { "group_a": "Group A zones", "group_b": "Group B zones" }
+      },
+      "inputs": {
+        "title": "Conditions",
+        "description": "The sensors that decide whether it is a good time to mow (permission) and whether a running mow must stop (danger). Optional inputs that are left empty simply never trip.",
+        "data": {
+          "season_entity": "Mowing season switch",
+          "canopy_temp_entity": "Canopy temperature (°F)",
+          "precip_chance_entity": "Precipitation chance (%)",
+          "dry_grass_a_entity": "Group A dry-grass sensor",
+          "dry_grass_b_entity": "Group B dry-grass sensor",
+          "weather_entity": "Weather",
+          "precip_type_entity": "Precipitation type",
+          "lightning_distance_entity": "Lightning distance",
+          "lightning_strike_entity": "Last lightning strike (timestamp)",
+          "mow_allowed_a_entity": "Group A mowing allowed (overseed)",
+          "mow_allowed_b_entity": "Group B mowing allowed (overseed)",
+          "calendar_entity": "Mowing log calendar",
+          "notify_service": "Notification service"
+        },
+        "data_description": {
+          "mow_allowed_a_entity": "Optional. While this is not on, Group A is treated as held for overseeding. Unavailable counts as held.",
+          "mow_allowed_b_entity": "Optional. While this is not on, Group B is treated as held for overseeding. Unavailable counts as held."
+        }
+      },
+      "gate": {
+        "title": "Gate",
+        "description": "The mower is never started while the gate is open. An unavailable gate sensor always counts as open.",
+        "data": { "gate_entity": "Gate sensor", "gate_polarity": "Sensor meaning" }
       }
     },
-    "abort": {
-      "not_ready": "This build of Luba Scheduler is a development scaffold. There is nothing to configure yet."
+    "error": {
+      "missing_roles": "This device is missing entities Luba Scheduler needs: {missing}. Is it a Mammotion mower, and is the integration loaded?",
+      "no_zones": "This mower has no zone switches yet. Create zones in the Mammotion app first.",
+      "empty_group": "Each group needs at least one zone.",
+      "overlapping_groups": "A zone can belong to only one group."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Luba Scheduler",
+        "menu_options": {
+          "mower": "Mower",
+          "zones": "Zone groups",
+          "inputs": "Conditions",
+          "gate": "Gate",
+          "tuning": "Thresholds and settings"
+        }
+      },
+      "mower": {
+        "title": "Mower",
+        "description": "Pick the Mammotion mower. Changing to a different mower clears the zone groups.",
+        "data": { "mower_device": "Mower" }
+      },
+      "zones": {
+        "title": "Zone groups",
+        "description": "Split the mower's zones into two groups. Each mow day cuts one group.",
+        "data": { "group_a": "Group A zones", "group_b": "Group B zones" }
+      },
+      "inputs": {
+        "title": "Conditions",
+        "description": "Clear an optional field to stop using it.",
+        "data": {
+          "season_entity": "Mowing season switch",
+          "canopy_temp_entity": "Canopy temperature (°F)",
+          "precip_chance_entity": "Precipitation chance (%)",
+          "dry_grass_a_entity": "Group A dry-grass sensor",
+          "dry_grass_b_entity": "Group B dry-grass sensor",
+          "weather_entity": "Weather",
+          "precip_type_entity": "Precipitation type",
+          "lightning_distance_entity": "Lightning distance",
+          "lightning_strike_entity": "Last lightning strike (timestamp)",
+          "mow_allowed_a_entity": "Group A mowing allowed (overseed)",
+          "mow_allowed_b_entity": "Group B mowing allowed (overseed)",
+          "calendar_entity": "Mowing log calendar",
+          "notify_service": "Notification service"
+        }
+      },
+      "gate": {
+        "title": "Gate",
+        "description": "The mower is never started while the gate is open. An unavailable gate sensor always counts as open.",
+        "data": { "gate_entity": "Gate sensor", "gate_polarity": "Sensor meaning" }
+      },
+      "tuning": {
+        "title": "Thresholds and settings",
+        "data": {
+          "cutoff_before_sunset_minutes": "No new mow within this long of sunset",
+          "canopy_min_f": "Coolest canopy temperature to start",
+          "canopy_max_f": "Hottest canopy temperature (above this, a running mow stops)",
+          "precip_chance_max": "Start only while precipitation chance is below",
+          "lightning_radius": "Lightning radius (in the distance sensor's unit)",
+          "lightning_recency_minutes": "A strike counts for this long",
+          "fresh_start_battery_floor": "Battery needed for a fresh start",
+          "optimal_delay_minutes": "Conditions must hold this long before they count",
+          "angle_options": "Mowing angles to rotate through (degrees, comma-separated)",
+          "spacing_options": "Path spacings to rotate through (cm, comma-separated)"
+        }
+      }
+    },
+    "error": {
+      "missing_roles": "This device is missing entities Luba Scheduler needs: {missing}.",
+      "no_zones": "This mower has no zone switches yet.",
+      "empty_group": "Each group needs at least one zone.",
+      "overlapping_groups": "A zone can belong to only one group.",
+      "canopy_range": "The hottest temperature must be above the coolest.",
+      "bad_list": "Enter distinct whole numbers separated by commas, within the allowed range."
+    }
+  },
+  "selector": {
+    "gate_polarity": {
+      "options": {
+        "on_closed": "On means the gate is closed",
+        "on_open": "On means the gate is open (door/contact sensors)"
+      }
+    }
+  },
+  "issues": {
+    "dead_bindings": {
+      "title": "Mower entities are missing",
+      "description": "These can no longer be found: {names}. A zone the mower rebuilt (for example after merging or renaming zones in the Mammotion app) is a new zone. Re-pick it under Luba Scheduler → Configure → Zone groups (or Mower)."
+    },
+    "start_mow_drift": {
+      "title": "Mammotion changed its start command",
+      "description": "mammotion.start_mow's fields changed. Added: {added}. Removed: {removed}. A new field gets a default Luba Scheduler never chose, so review it before the next mow and update Luba Scheduler."
+    },
+    "start_mow_unreadable": {
+      "title": "Can't read Mammotion's start command",
+      "description": "Luba Scheduler could not read the fields of mammotion.start_mow, so it cannot tell whether a Mammotion update changed them."
+    },
+    "entity_id_taken": {
+      "title": "A Luba Scheduler entity got a different id",
+      "description": "{expected} was already taken, so Home Assistant created {actual} instead. Remove or rename the old entity that holds {expected}, then reload Luba Scheduler."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "optimal_conditions": { "name": "Optimal conditions" },
+      "adverse_conditions": { "name": "Adverse conditions" },
+      "group_a_conditions_ok": { "name": "Group A conditions OK" },
+      "group_b_conditions_ok": { "name": "Group B conditions OK" },
+      "ready": { "name": "Ready" }
+    },
+    "sensor": {
+      "window_close": { "name": "Window close" },
+      "hard_stop": { "name": "Hard stop" },
+      "next_mow_angle": { "name": "Next mow angle" }
+    },
+    "select": {
+      "cuts_per_group": { "name": "Cuts per group" },
+      "angle": { "name": "Angle" },
+      "path_spacing": { "name": "Path spacing" }
+    },
+    "number": {
+      "cutting_height": { "name": "Cutting height" }
     }
   }
 }
