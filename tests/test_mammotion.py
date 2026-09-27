@@ -80,6 +80,15 @@ async def test_drift_absent_ok_added_removed(hass):
     assert start_mow_drift(hass) == ("drift", {"new_thing"}, {"is_dump"})
 
 
+async def test_drift_reads_the_ha_2026_9_wrapping(hass):
+    """HA 2026.9 wraps the entity-service vol.All in an outer vol.Schema (live 2026.9.4)."""
+    async def _handler(call):
+        return None
+    inner = cv.make_entity_service_schema({vol.Optional(f): object for f in START_MOW_FIELDS})
+    hass.services.async_register(c.MAMMOTION, "start_mow", _handler, schema=vol.Schema(inner))
+    assert start_mow_drift(hass) == ("ok", set(), set())
+
+
 async def test_drift_unreadable(hass):
     async def _handler(call):
         return None
