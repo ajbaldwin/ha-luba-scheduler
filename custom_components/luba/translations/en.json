@@ -1,5 +1,11 @@
 {
   "config": {
+    "step": {
+      "user": {
+        "title": "Luba Orchestrator",
+        "description": "This build is a development scaffold. There is nothing to configure yet, and submitting this form adds nothing."
+      }
+    },
     "abort": {
       "not_ready": "This build of Luba Orchestrator is a development scaffold. There is nothing to configure yet."
     }

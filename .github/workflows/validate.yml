@@ -18,7 +18,18 @@ jobs:
     name: HACS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: hacs/action@main
+      # HACS validation reads the repository through the public GitHub API, so
+      # it cannot see a private repository's files. Skip (loudly) while
+      # private; it runs by itself once the repository goes public.
+      - id: visibility
+        run: echo "private=$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - if: steps.visibility.outputs.private == 'true'
+        run: echo "::warning::HACS validation skipped — repository is private"
+      - if: steps.visibility.outputs.private != 'true'
+        uses: actions/checkout@v5
+      - if: steps.visibility.outputs.private != 'true'
+        uses: hacs/action@main
         with:
           category: integration
