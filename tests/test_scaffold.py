@@ -21,7 +21,7 @@ def test_manifest():
 
 def test_hacs_json():
     h = json.loads((ROOT / "hacs.json").read_text(encoding="utf-8"))
-    assert h == {"name": "Luba Orchestrator", "homeassistant": "2026.3.0",
+    assert h == {"name": "Luba Scheduler", "homeassistant": "2026.3.0",
                  "hide_default_branch": True}
 
 

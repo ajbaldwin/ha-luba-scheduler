@@ -1,5 +1,5 @@
 {
-  "name": "Luba Orchestrator",
+  "name": "Luba Scheduler",
   "homeassistant": "2026.3.0",
   "hide_default_branch": true
 }

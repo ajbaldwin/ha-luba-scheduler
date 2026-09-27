@@ -1,4 +1,4 @@
-"""Config flow for Luba Orchestrator.
+"""Config flow for Luba Scheduler.
 
 Scaffold only: the user step explains that there is nothing to configure and
 submitting it aborts, so an install from this build can never create an

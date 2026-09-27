@@ -1,6 +1,6 @@
 {
   "domain": "luba",
-  "name": "Luba Orchestrator",
+  "name": "Luba Scheduler",
   "codeowners": ["@ajbaldwin"],
   "config_flow": true,
   "documentation": "https://github.com/ajbaldwin/ha-luba-scheduler",

@@ -1,4 +1,4 @@
-"""Luba Orchestrator — schedules and supervises a Mammotion Luba mower.
+"""Luba Scheduler — schedules and supervises a Mammotion Luba mower.
 
 Scaffold only: the config flow aborts, so no entry can be created yet and
 nothing here runs. The engine arrives in later phases.

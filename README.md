@@ -1,4 +1,4 @@
-# Luba Orchestrator
+# Luba Scheduler
 
 A Home Assistant integration that schedules and supervises a Mammotion Luba robot mower. It sits on top of the [Mammotion integration](https://github.com/mikey0000/Mammotion-HA):
 - It decides when growing and weather conditions allow a mow.
