@@ -52,6 +52,12 @@ FIXED_JOB = {
 }
 
 
+def yaml_automations_on(hass: HomeAssistant) -> list[str]:
+    """The YAML package's automations that are still on. Any one blocks active mode."""
+    return sorted(s.entity_id for s in hass.states.async_all("automation")
+                  if s.entity_id.startswith("automation.luba_") and s.state == STATE_ON)
+
+
 class CommandRefused(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
@@ -86,14 +92,10 @@ class MowerCommander:
     def adverse_now(self) -> bool:
         return self._co.recompute().adverse
 
-    def yaml_automations_on(self) -> list[str]:
-        return sorted(s.entity_id for s in self._hass.states.async_all("automation")
-                      if s.entity_id.startswith("automation.luba_") and s.state == STATE_ON)
-
     def _check_can_command(self) -> None:
         if self.shadow:
             return
-        yaml_on = self.yaml_automations_on()
+        yaml_on = yaml_automations_on(self._hass)
         if yaml_on:
             ir.async_create_issue(self._hass, c.DOMAIN, ISSUE_YAML_ACTIVE, is_fixable=False,
                                   severity=ir.IssueSeverity.CRITICAL,

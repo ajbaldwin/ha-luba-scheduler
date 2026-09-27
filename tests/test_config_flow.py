@@ -99,3 +99,70 @@ async def test_options_clearing_an_optional_input_removes_it(hass):
     await hass.async_block_till_done()
     assert c.CONF_LIGHTNING_DISTANCE not in entry.options
     assert entry.options[c.CONF_SEASON] == INPUTS[c.CONF_SEASON]
+
+
+async def _options_step(hass, entry, step):
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    return await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": step})
+
+
+TIMING = {c.CONF_SCHEDULER_TIME: "09:15:00", c.CONF_ROTATION_TIME: "02:00",
+          c.CONF_START_VERIFY: 90.0, c.CONF_START_ATTEMPTS: 2.0, c.CONF_ROUTE_VERIFY: 45.0,
+          c.CONF_REPROMPT: 20.0, c.CONF_CANCEL_TIMEOUT: 30.0, c.CONF_RESUME_FLOOR: 25.0,
+          c.CONF_OFFLINE_TIMEOUT: 4.0, c.CONF_IDLE_RECONCILE: 3.0}
+
+
+async def test_options_timing_types_and_normalises(hass):
+    mower = add_mower(hass)
+    entry = await setup_luba(hass, mower)
+    result = await _options_step(hass, entry, "timing")
+    assert result["step_id"] == "timing"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**TIMING, c.CONF_RESUME_FLOOR: 99.0})
+    assert result["errors"] == {c.CONF_RESUME_FLOOR: "resume_above_start"}
+    result = await hass.config_entries.options.async_configure(result["flow_id"], TIMING)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[c.CONF_SCHEDULER_TIME] == "09:15:00"
+    assert entry.options[c.CONF_ROTATION_TIME] == "02:00:00"
+    assert entry.options[c.CONF_START_ATTEMPTS] == 2
+    assert isinstance(entry.options[c.CONF_START_ATTEMPTS], int)
+    assert entry.options[c.CONF_ZONES]                          # other options kept
+
+
+async def test_options_mode_defaults_to_shadow(hass):
+    mower = add_mower(hass)
+    entry = await setup_luba(hass, mower)
+    assert entry.options[c.CONF_MODE] == c.MODE_SHADOW
+    result = await _options_step(hass, entry, "mode")
+    assert result["step_id"] == "mode"
+
+
+async def test_options_active_needs_confirmation(hass):
+    mower = add_mower(hass)
+    entry = await setup_luba(hass, mower)
+    result = await _options_step(hass, entry, "mode")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {c.CONF_MODE: c.MODE_ACTIVE, "confirm_active": False})
+    assert result["errors"] == {"confirm_active": "confirm_active"}
+    assert entry.options[c.CONF_MODE] == c.MODE_SHADOW
+
+
+async def test_options_active_refused_while_yaml_automation_on(hass):
+    mower = add_mower(hass)
+    entry = await setup_luba(hass, mower)
+    hass.states.async_set("automation.luba_scheduler", "on")
+    hass.states.async_set("automation.luba_other", "off")
+    result = await _options_step(hass, entry, "mode")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {c.CONF_MODE: c.MODE_ACTIVE, "confirm_active": True})
+    assert result["errors"] == {"base": "yaml_still_active"}
+    assert result["description_placeholders"]["count"] == "1"
+    hass.states.async_set("automation.luba_scheduler", "off")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {c.CONF_MODE: c.MODE_ACTIVE, "confirm_active": True})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[c.CONF_MODE] == c.MODE_ACTIVE
+    assert "confirm_active" not in entry.options

@@ -42,6 +42,7 @@ class Dispatcher:
         self._handler = handler
         self._queue: asyncio.Queue[Intent] = asyncio.Queue(maxsize=QUEUE_MAX)
         self._task: asyncio.Task | None = None
+        self._busy = False
         self.handled: list[str] = []        # intent names, in order (diagnostics/tests)
 
     @callback
@@ -70,6 +71,11 @@ class Dispatcher:
                 pass
             self._task = None
 
+    @property
+    def idle(self) -> bool:
+        """Nothing queued and nothing running."""
+        return self._queue.empty() and not self._busy
+
     async def join(self) -> None:
         """Wait until every queued intent, including chained ones, has run (tests)."""
         await self._queue.join()
@@ -77,6 +83,7 @@ class Dispatcher:
     async def _run(self) -> None:
         while True:
             intent = await self._queue.get()
+            self._busy = True
             try:
                 self.handled.append(intent.name)
                 await self._handler(intent)
@@ -90,4 +97,5 @@ class Dispatcher:
                     self.dispatch("enter_error",
                                   error_context=f"{intent.name}: unexpected failure (see log)")
             finally:
+                self._busy = False
                 self._queue.task_done()

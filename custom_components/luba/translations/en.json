@@ -4,12 +4,17 @@
       "user": {
         "title": "Mower",
         "description": "Pick the Mammotion mower. Luba Scheduler finds its activity, battery, RTK, camera and zone entities from the device, so later renames in the Mammotion integration don't break it.",
-        "data": { "mower_device": "Mower" }
+        "data": {
+          "mower_device": "Mower"
+        }
       },
       "zones": {
         "title": "Zone groups",
         "description": "Split the mower's zones into two groups. Each mow day cuts one group, and the groups never share a day.",
-        "data": { "group_a": "Group A zones", "group_b": "Group B zones" }
+        "data": {
+          "group_a": "Group A zones",
+          "group_b": "Group B zones"
+        }
       },
       "inputs": {
         "title": "Conditions",
@@ -37,7 +42,10 @@
       "gate": {
         "title": "Gate",
         "description": "The mower is never started while the gate is open. An unavailable gate sensor always counts as open.",
-        "data": { "gate_entity": "Gate sensor", "gate_polarity": "Sensor meaning" }
+        "data": {
+          "gate_entity": "Gate sensor",
+          "gate_polarity": "Sensor meaning"
+        }
       }
     },
     "error": {
@@ -56,18 +64,25 @@
           "zones": "Zone groups",
           "inputs": "Conditions",
           "gate": "Gate",
-          "tuning": "Thresholds and settings"
+          "tuning": "Thresholds and settings",
+          "timing": "Timing",
+          "mode": "Mode (shadow or active)"
         }
       },
       "mower": {
         "title": "Mower",
         "description": "Pick the Mammotion mower. Changing to a different mower clears the zone groups.",
-        "data": { "mower_device": "Mower" }
+        "data": {
+          "mower_device": "Mower"
+        }
       },
       "zones": {
         "title": "Zone groups",
         "description": "Split the mower's zones into two groups. Each mow day cuts one group.",
-        "data": { "group_a": "Group A zones", "group_b": "Group B zones" }
+        "data": {
+          "group_a": "Group A zones",
+          "group_b": "Group B zones"
+        }
       },
       "inputs": {
         "title": "Conditions",
@@ -91,7 +106,10 @@
       "gate": {
         "title": "Gate",
         "description": "The mower is never started while the gate is open. An unavailable gate sensor always counts as open.",
-        "data": { "gate_entity": "Gate sensor", "gate_polarity": "Sensor meaning" }
+        "data": {
+          "gate_entity": "Gate sensor",
+          "gate_polarity": "Sensor meaning"
+        }
       },
       "tuning": {
         "title": "Thresholds and settings",
@@ -107,6 +125,30 @@
           "angle_options": "Mowing angles to rotate through (degrees, comma-separated)",
           "spacing_options": "Path spacings to rotate through (cm, comma-separated)"
         }
+      },
+      "timing": {
+        "title": "Timing",
+        "description": "When the day's schedule runs, and how long Luba Scheduler waits for the mower at each step.",
+        "data": {
+          "scheduler_time": "Daily scheduler time",
+          "rotation_time": "Weekly settings rotation (Mondays at)",
+          "start_verify_seconds": "Wait for the mower to start, per attempt",
+          "start_attempts": "Start attempts",
+          "route_verify_seconds": "Wait for the planned route after a fresh start",
+          "reprompt_interval_minutes": "Re-prompt interval (also the Delay button's length)",
+          "cancel_timeout_seconds": "Wait for a cancelled job to clear",
+          "resume_battery_floor": "Battery needed to resume a held job",
+          "offline_timeout_minutes": "Mower unavailable this long counts as offline",
+          "idle_reconcile_minutes": "Mower ready this long mid-session counts as finished"
+        }
+      },
+      "mode": {
+        "title": "Mode",
+        "description": "**Shadow** (the default) runs the whole schedule and logs every decision, but never commands the mower, never sends a notification and never writes the calendar.\n\n**Active** commands the mower. Only one system may command the mower: turn off every YAML Luba automation first, then tick the confirmation. Luba Scheduler refuses active mode while any `automation.luba_*` is on.",
+        "data": {
+          "mode": "Mode",
+          "confirm_active": "I have turned off the YAML automations; let Luba Scheduler command the mower"
+        }
       }
     },
     "error": {
@@ -115,7 +157,10 @@
       "empty_group": "Each group needs at least one zone.",
       "overlapping_groups": "A zone can belong to only one group.",
       "canopy_range": "The hottest temperature must be above the coolest.",
-      "bad_list": "Enter distinct whole numbers separated by commas, within the allowed range."
+      "bad_list": "Enter distinct whole numbers separated by commas, within the allowed range.",
+      "resume_above_start": "The resume floor can't be above the fresh-start floor (Thresholds and settings).",
+      "confirm_active": "Tick the confirmation to switch to active mode.",
+      "yaml_still_active": "{count} YAML Luba automations are still on. Turn them off first."
     }
   },
   "selector": {
@@ -123,6 +168,12 @@
       "options": {
         "on_closed": "On means the gate is closed",
         "on_open": "On means the gate is open (door/contact sensors)"
+      }
+    },
+    "mode": {
+      "options": {
+        "shadow": "Shadow: decide and log, command nothing",
+        "active": "Active: command the mower"
       }
     }
   },
@@ -142,28 +193,79 @@
     "entity_id_taken": {
       "title": "A Luba Scheduler entity got a different id",
       "description": "{expected} was already taken, so Home Assistant created {actual} instead. Remove or rename the old entity that holds {expected}, then reload Luba Scheduler."
+    },
+    "queue_overflow": {
+      "title": "Luba Scheduler dropped an event",
+      "description": "The intent queue was full, so `{intent}` was dropped. This should never happen; the log has the details. Check the mower's state before the next mow, then reload Luba Scheduler to clear this."
+    },
+    "yaml_still_active": {
+      "title": "YAML Luba automations are still on",
+      "description": "Luba Scheduler is in active mode, but {count} `automation.luba_*` automations are still on. Only one system may command the mower, so every mower command is refused. Turn the YAML automations off, or switch Luba Scheduler back to shadow mode."
     }
   },
   "entity": {
     "binary_sensor": {
-      "optimal_conditions": { "name": "Optimal conditions" },
-      "adverse_conditions": { "name": "Adverse conditions" },
-      "group_a_conditions_ok": { "name": "Group A conditions OK" },
-      "group_b_conditions_ok": { "name": "Group B conditions OK" },
-      "ready": { "name": "Ready" }
+      "optimal_conditions": {
+        "name": "Optimal conditions"
+      },
+      "adverse_conditions": {
+        "name": "Adverse conditions"
+      },
+      "group_a_conditions_ok": {
+        "name": "Group A conditions OK"
+      },
+      "group_b_conditions_ok": {
+        "name": "Group B conditions OK"
+      },
+      "ready": {
+        "name": "Ready"
+      }
     },
     "sensor": {
-      "window_close": { "name": "Window close" },
-      "hard_stop": { "name": "Hard stop" },
-      "next_mow_angle": { "name": "Next mow angle" }
+      "window_close": {
+        "name": "Window close"
+      },
+      "hard_stop": {
+        "name": "Hard stop"
+      },
+      "next_mow_angle": {
+        "name": "Next mow angle"
+      },
+      "state": {
+        "name": "State"
+      },
+      "group_a_cuts": {
+        "name": "Group A cuts"
+      },
+      "group_b_cuts": {
+        "name": "Group B cuts"
+      }
     },
     "select": {
-      "cuts_per_group": { "name": "Cuts per group" },
-      "angle": { "name": "Angle" },
-      "path_spacing": { "name": "Path spacing" }
+      "cuts_per_group": {
+        "name": "Cuts per group"
+      },
+      "angle": {
+        "name": "Angle"
+      },
+      "path_spacing": {
+        "name": "Path spacing"
+      }
     },
     "number": {
-      "cutting_height": { "name": "Cutting height" }
+      "cutting_height": {
+        "name": "Cutting height"
+      }
+    },
+    "switch": {
+      "auto_start": {
+        "name": "Auto-start"
+      }
+    },
+    "button": {
+      "clear_error": {
+        "name": "Clear error"
+      }
     }
   }
 }
