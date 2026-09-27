@@ -1,7 +1,12 @@
 {
   "domain": "luba",
   "name": "Luba Scheduler",
-  "codeowners": ["@ajbaldwin"],
+  "after_dependencies": [
+    "mammotion"
+  ],
+  "codeowners": [
+    "@ajbaldwin"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/ajbaldwin/ha-luba-scheduler",
   "integration_type": "service",
