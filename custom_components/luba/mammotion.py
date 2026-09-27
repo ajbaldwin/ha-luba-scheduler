@@ -119,11 +119,16 @@ def dead_bindings(hass: HomeAssistant, ids: Iterable[str]) -> list[str]:
 
 
 def _schema_keys(schema: Any) -> set[str] | None:
-    """Field names of a (possibly vol.All-wrapped) service schema, or None."""
-    if isinstance(schema, vol.Schema) and isinstance(schema.schema, dict):
-        return {str(k.schema if isinstance(k, vol.Marker) else k) for k in schema.schema}
+    """Field names of a wrapped service schema, or None.
+
+    HA's wrapping has changed between releases: 2026.2 registers
+    ``vol.All(vol.Schema({...}), check)``; 2026.9 wraps that again in an
+    outer ``vol.Schema``. Descend through both until the field dict appears.
+    """
     if isinstance(schema, dict):
         return {str(k.schema if isinstance(k, vol.Marker) else k) for k in schema}
+    if isinstance(schema, vol.Schema):
+        return _schema_keys(schema.schema)
     for inner in getattr(schema, "validators", ()):
         keys = _schema_keys(inner)
         if keys is not None:
