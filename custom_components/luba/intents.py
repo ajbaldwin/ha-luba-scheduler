@@ -27,7 +27,8 @@ from typing import Any
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (async_call_later, async_track_state_change_event,
+                                         async_track_time_interval)
 from homeassistant.util import dt as dt_util
 
 from . import audit
@@ -193,7 +194,11 @@ class Orchestrator:
 
     async def _wait_for(self, predicate: Callable[[], bool], timeout: float,
                         watch: list[str] | None = None) -> bool:
-        """True as soon as predicate holds (checked on each watched change and every second)."""
+        """True as soon as predicate holds (checked on each watched change and every second).
+
+        The deadline and the poll are Home Assistant timers, not the event loop's
+        clock, so they follow HA time (and tests can advance it).
+        """
         if predicate():
             return True
         done = asyncio.Event()
@@ -203,20 +208,19 @@ class Orchestrator:
             if predicate():
                 done.set()
 
-        unsub = async_track_state_change_event(self.hass, watch, _check) if watch else None
+        @callback
+        def _expire(_now: datetime) -> None:
+            done.set()
+
+        unsubs = [async_call_later(self.hass, timeout, _expire),
+                  async_track_time_interval(self.hass, _check, timedelta(seconds=1))]
+        if watch:
+            unsubs.append(async_track_state_change_event(self.hass, watch, _check))
         try:
-            loop_end = self.hass.loop.time() + timeout
-            while not done.is_set():
-                remaining = loop_end - self.hass.loop.time()
-                if remaining <= 0:
-                    return predicate()
-                try:
-                    await asyncio.wait_for(done.wait(), min(1.0, remaining))
-                except TimeoutError:
-                    _check()
-            return True
+            await done.wait()
+            return predicate()
         finally:
-            if unsub:
+            for unsub in unsubs:
                 unsub()
 
     def _new_prompt_id(self) -> str:
@@ -484,7 +488,9 @@ class Orchestrator:
                                                         {"entity_id": ids}, blocking=True)
                 except Exception as err:  # noqa: BLE001 — a failed refresh never blocks readiness
                     _LOGGER.debug("readiness refresh failed: %s", err)
-                await asyncio.sleep(c.READINESS_REFRESH_WAIT_S)
+                camera = self._role(c.ROLE_CAMERA)
+                await self._wait_for(lambda: self._state(camera) == "Light",
+                                     c.READINESS_REFRESH_WAIT_S, [camera] if camera else None)
         self.co.recompute()
 
     # ==== telemetry ==================================================================

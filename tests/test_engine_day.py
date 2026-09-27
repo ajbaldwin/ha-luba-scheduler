@@ -5,8 +5,8 @@ from custom_components.luba.engine import fsm as F
 from .world import build, fire_action, fsm, later, settle, tick
 
 
-async def test_happy_day_prompt_start_complete_log_count(hass, freezer, monkeypatch):
-    world, entry = await build(hass, freezer, monkeypatch)
+async def test_happy_day_prompt_start_complete_log_count(hass, freezer):
+    world, entry = await build(hass, freezer)
     co = entry.runtime_data
     assert fsm(entry) == F.IDLE
 
@@ -15,7 +15,7 @@ async def test_happy_day_prompt_start_complete_log_count(hass, freezer, monkeypa
     assert co.store.day.scheduled_group == "A"
     assert len(world.prompts()) == 1
 
-    await fire_action(hass, entry, world.last_prompt_action(c.ACT_START))
+    await fire_action(hass, entry, world.last_prompt_action(c.ACT_START), freezer)
     starts = world.called("mammotion.start_mow")
     assert len(starts) == 1
     assert sorted(starts[0]["areas"]) == sorted([world.mower.zones["Front"],
@@ -28,7 +28,7 @@ async def test_happy_day_prompt_start_complete_log_count(hass, freezer, monkeypa
 
     await tick(hass, entry, freezer, later(minutes=90))
     world.finish()
-    await settle(hass, entry)
+    await settle(hass, entry, freezer)
     await tick(hass, entry, freezer, later(minutes=3))           # idle reconcile
     assert fsm(entry) == F.IDLE
     assert co.store.counters.cuts == {"A": 1, "B": 0}

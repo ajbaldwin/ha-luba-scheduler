@@ -66,9 +66,12 @@ class Listeners:
             self.co.async_add_listener(self._on_snapshot),
             async_at_started(self.hass, self._on_started),
         ]
+        if gate := o.get(c.CONF_GATE):
+            self._unsubs.append(async_track_state_change_event(self.hass, [gate], self._on_gate))
         self._subscribe_mower()
         self.co.on_deadlines_changed = self.async_arm_deadlines
         self._on_snapshot()
+        self._on_gate()
 
     @callback
     def async_stop(self) -> None:
@@ -165,12 +168,16 @@ class Listeners:
             self._last[key] = value
             if value and before is False:
                 self._dispatch(intent, **ctx)
+        self.async_arm_deadlines()
+
+    @callback
+    def _on_gate(self, _event: Event | None = None) -> None:
+        """#11: the gate closed (an edge, whatever the sensor's polarity)."""
         gate_closed = self._gate_closed()
         before = self._last.get("gate")
         self._last["gate"] = gate_closed
         if gate_closed and before is False:
-            self._dispatch("gate_recover")                                # #11
-        self.async_arm_deadlines()
+            self._dispatch("gate_recover")
 
     def _gate_closed(self) -> bool:
         entity_id = self.opts.get(c.CONF_GATE)
@@ -197,7 +204,9 @@ class Listeners:
 
     @callback
     def _on_activity(self, old: str | None, new: str | None) -> None:
-        if new and new != old:
+        if new == old:
+            return                          # attribute-only update: no edge, timers keep running
+        if new:
             self._dispatch("telemetry_sync", mode_value=new)           # #4
         self._cancel_pending("offline")
         self._cancel_pending("idle")

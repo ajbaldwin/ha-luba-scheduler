@@ -17,7 +17,8 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.const import EVENT_LOGBOOK_ENTRY
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
@@ -82,6 +83,28 @@ class FakeWorld:
 
     async def _on_calendar(self, call: ServiceCall) -> None:
         self.events.append(dict(call.data))
+
+    def follow_shadow(self, entry) -> None:
+        """Shadow scenarios: the YAML package, deciding the same, runs each command Luba logs.
+
+        Luba's commander records a would-be call and logs "shadow: would call …";
+        the fake mower then reacts as if the YAML had sent it. Nothing is recorded
+        in ``self.calls`` — no real service was called.
+        """
+        commander = entry.runtime_data.commander
+
+        @callback
+        def _on_log(event) -> None:
+            message = str(event.data.get("message", ""))
+            if not message.startswith("shadow: would call "):
+                return
+            service = message.removeprefix("shadow: would call ").split(" ", 1)[0]
+            if service in _DEFAULTS:                  # a mower command, not a notify
+                name, data = commander.calls[-1]
+                assert name == service
+                _DEFAULTS[name](self, data)
+
+        self.hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, _on_log)
 
     # ---- scripting -----------------------------------------------------------------
 
@@ -157,6 +180,21 @@ class FakeWorld:
             self.hass.states.async_remove(entity_id)
         self.task_areas.clear()
 
+    def reslug(self, name: str, new_entity_id: str) -> None:
+        """The integration renames a zone switch's entity_id (the registry entry id survives)."""
+        old = self.mower.zones[name]
+        st = self.hass.states.get(old)
+        er.async_get(self.hass).async_update_entity(old, new_entity_id=new_entity_id)
+        self.hass.states.async_remove(old)
+        self.hass.states.async_set(new_entity_id, st.state, st.attributes)
+        self.mower.zones[name] = new_entity_id
+
+    def open_gate(self, is_open: bool = True) -> None:
+        self.hass.states.async_set("binary_sensor.gate_closed", "off" if is_open else "on")
+
+    def rain(self, raining: bool = True) -> None:
+        self.hass.states.async_set("sensor.precip_type", "rain" if raining else "none")
+
     def hold_docked(self, *zones: str, battery: float = 60) -> None:
         """A held job, docked and charging (the carry-over / weather-abort shape)."""
         if zones:
@@ -203,39 +241,45 @@ _DEFAULTS: dict[str, Reaction] = {
     "lawn_mower.start_mowing": _resume, "lawn_mower.dock": _dock,
 }
 
-# Fast, deterministic timings for tests: waits that the fake mower satisfies at
-# once return at once; the ones a scenario lets lapse cost a fraction of a second.
-FAST = {
-    c.CONF_OPTIMAL_DELAY: 0, c.CONF_START_VERIFY: 0.05, c.CONF_ROUTE_VERIFY: 0.05,
-    c.CONF_CANCEL_TIMEOUT: 0.05, c.CONF_NOTIFY: NOTIFY, c.CONF_CALENDAR: CALENDAR,
-}
+# Test options: no delay_on (a scenario ticks time explicitly where it matters),
+# and the fake phone and calendar as targets. Every other timing is the default.
+FAST = {c.CONF_OPTIMAL_DELAY: 0, c.CONF_NOTIFY: NOTIFY, c.CONF_CALENDAR: CALENDAR}
+STEP = timedelta(seconds=1)
 
 
-async def settle(hass: HomeAssistant, entry) -> None:
-    """Run until the intent queue is empty and nothing new was enqueued."""
+async def settle(hass: HomeAssistant, entry, freezer=None, limit: timedelta = timedelta(hours=1)) -> None:
+    """Run until no intent is queued or running.
+
+    An intent waiting on the mower (start verification, a dock, a cancel) waits on
+    HA time; with ``freezer`` given, the clock advances a second at a time until it
+    finishes, as it would in real life. Without it, a waiting intent fails the test.
+    """
     dispatcher = entry.runtime_data.dispatcher
-    for _ in range(50):
-        await hass.async_block_till_done()
-        await dispatcher.join()
-        await hass.async_block_till_done()
+    elapsed = timedelta()
+    while True:
+        for _ in range(3):
+            await hass.async_block_till_done()
         if dispatcher.idle:
             return
-    raise AssertionError("the intent queue never settled")
+        if freezer is None or elapsed >= limit:
+            raise AssertionError(f"intents still running after {elapsed}: "
+                                 f"{dispatcher.handled[-3:]}")
+        freezer.tick(STEP)
+        elapsed += STEP
+        async_fire_time_changed(hass)
 
 
 async def tick(hass: HomeAssistant, entry, freezer, delta: timedelta) -> None:
+    """Let pending state changes land (listeners arm their timers now), then jump the clock."""
+    await settle(hass, entry, freezer)
     freezer.tick(delta)
     async_fire_time_changed(hass)
-    await settle(hass, entry)
+    await settle(hass, entry, freezer)
 
 
-async def build(hass: HomeAssistant, freezer, monkeypatch, *, at: datetime | None = None,
+async def build(hass: HomeAssistant, freezer, *, at: datetime | None = None,
                 active: bool = True, **overrides) -> tuple[FakeWorld, Any]:
     """A fake mower on a good day, a fake world, and a loaded Luba entry."""
-    monkeypatch.setattr(c, "READINESS_REFRESH_WAIT_S", 0)
-    monkeypatch.setattr(c, "STALE_DOCK_WAIT_S", 0.05)
-    monkeypatch.setattr(c, "DOCK_VERIFY_S", 0.05)
-    monkeypatch.setattr(c, "REBOOT_DEPENDENCY_WAIT_S", 0.05)
     freezer.move_to(at or local(2026, 9, 29, 8, 40))          # a Tuesday: Group A at 1x
     mower = add_mower(hass)
     set_good_day(hass, mower)
@@ -245,7 +289,7 @@ async def build(hass: HomeAssistant, freezer, monkeypatch, *, at: datetime | Non
     world.set_work_area("Not working")
     options = {**FAST, c.CONF_MODE: c.MODE_ACTIVE if active else c.MODE_SHADOW, **overrides}
     entry = await setup_luba(hass, mower, **options)
-    await settle(hass, entry)
+    await settle(hass, entry, freezer)
     return world, entry
 
 
@@ -253,17 +297,18 @@ def fsm(entry) -> str:
     return entry.runtime_data.store.fsm.state
 
 
-async def fire_action(hass: HomeAssistant, entry, action: str) -> None:
+async def fire_action(hass: HomeAssistant, entry, action: str, freezer=None) -> None:
     hass.bus.async_fire("mobile_app_notification_action", {"action": action})
-    await settle(hass, entry)
+    await settle(hass, entry, freezer)
 
 
-async def dispatch(hass: HomeAssistant, entry, *intents: str | tuple[str, dict]) -> None:
+async def dispatch(hass: HomeAssistant, entry, *intents: str | tuple[str, dict],
+                   freezer=None) -> None:
     """Enqueue intents back to back (the same instant), then settle."""
     for item in intents:
         name, ctx = (item, {}) if isinstance(item, str) else item
         entry.runtime_data.dispatcher.dispatch(name, **ctx)
-    await settle(hass, entry)
+    await settle(hass, entry, freezer)
 
 
 def later(hours: float = 0, minutes: float = 0) -> timedelta:
