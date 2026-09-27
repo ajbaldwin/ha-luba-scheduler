@@ -1,0 +1,7 @@
+{
+  "config": {
+    "abort": {
+      "not_ready": "This build of Luba Orchestrator is a development scaffold. There is nothing to configure yet."
+    }
+  }
+}

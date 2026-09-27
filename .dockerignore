@@ -1,0 +1,5 @@
+.git
+.scrub-denylist
+.venv
+__pycache__
+.pytest_cache

@@ -1,0 +1,24 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.13" }
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  # Blocks releases (tools/release.sh requires every CI job green) and, by
+  # rule, the flip to public. See docs/RELEASING.md → Going public.
+  scrub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.13" }
+      - run: python tools/scrub_check.py --history .
+        env:
+          SCRUB_DENYLIST: ${{ secrets.SCRUB_DENYLIST }}

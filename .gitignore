@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.coverage
+# Local copy of the scrub denylist (CI reads the SCRUB_DENYLIST secret).
+.scrub-denylist
