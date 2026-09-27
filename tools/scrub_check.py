@@ -90,7 +90,9 @@ def scan_text(where: str, text: str, terms, fixture_ok, *, in_fixtures: bool) ->
 
 def _tracked_files(root: Path) -> list[str] | None:
     try:
-        out = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True)
+        # Tracked AND untracked-but-not-ignored: a pre-commit run must see new files too.
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                             cwd=root, capture_output=True, check=True)
     except (OSError, subprocess.CalledProcessError):
         return None
     return [p for p in out.stdout.decode("utf-8").split("\0") if p]

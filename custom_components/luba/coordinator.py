@@ -9,6 +9,7 @@ P1 commands nothing: no mower, notify or calendar calls exist yet.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -16,7 +17,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -67,6 +68,13 @@ class LubaCoordinator(DataUpdateCoordinator[Snapshot]):
         self._unsub_state: CALLBACK_TYPE | None = None
         self._unsub_delay: CALLBACK_TYPE | None = None
         self._unsub_registry: CALLBACK_TYPE | None = None
+        self.on_deadlines_changed: Callable[[], None] | None = None
+        # Set by async_setup_entry (P2 runtime): fsm writer, dispatcher, orchestrator, …
+        self.fsm = None
+        self.dispatcher = None
+        self.commander = None
+        self.notifier = None
+        self.orchestrator = None
 
     # ---- settings (owner-writable, exposed as select/number) -------------------
 
@@ -87,6 +95,12 @@ class LubaCoordinator(DataUpdateCoordinator[Snapshot]):
     def spacing(self) -> int:
         value = self.store.settings.spacing
         return value if value in self.spacing_options else self.spacing_options[0]
+
+    @property
+    def mower_name(self) -> str:
+        """The owner's name for the mower (device registry), used in notifications."""
+        device = dr.async_get(self.hass).async_get(self.opts.get(c.CONF_DEVICE, ""))
+        return (device.name_by_user or device.name) if device else "Mower"
 
     @callback
     def async_update_settings(self, **changes: Any) -> None:
@@ -228,6 +242,18 @@ class LubaCoordinator(DataUpdateCoordinator[Snapshot]):
     def _on_delay_expiry(self, _now: datetime) -> None:
         self._unsub_delay = None
         self.async_set_updated_data(self._compute())
+
+    @callback
+    def recompute(self) -> Snapshot:
+        """A fresh snapshot, published to every entity. Handlers call this before deciding."""
+        snap = self._compute()
+        self.async_set_updated_data(snap)
+        return snap
+
+    @callback
+    def async_arm_deadlines(self) -> None:
+        if self.on_deadlines_changed:
+            self.on_deadlines_changed()
 
     async def _async_update_data(self) -> Snapshot:
         return self._compute()
