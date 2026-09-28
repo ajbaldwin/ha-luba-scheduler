@@ -197,6 +197,12 @@ class FakeWorld:
     def rain(self, raining: bool = True) -> None:
         self.hass.states.async_set("sensor.precip_type", "rain" if raining else "none")
 
+    def mow_manually(self, *zones: str) -> None:
+        """The owner starts a job from the Mammotion app: it leaves the dock and works."""
+        self.start_job_for(*zones)
+        self.set_charging(False)
+        self.set_mode(c.MODE_WORKING)
+
     def hold_docked(self, *zones: str, battery: float = 60) -> None:
         """A held job, docked and charging (the carry-over / weather-abort shape)."""
         if zones:

@@ -148,8 +148,10 @@ class Listeners:
     def _fire(self, intent: str) -> Callable[[datetime], None]:
         @callback
         def _fired(_now: datetime) -> None:
+            # _last keeps the fired deadline: until the handler replaces it, the
+            # next snapshot would otherwise see a past deadline and treat it as
+            # one missed during downtime — firing the intent a second time.
             self._timers.pop(intent, None)
-            self._last.pop(f"deadline_{intent}", None)
             self._dispatch(intent)
         return _fired
 

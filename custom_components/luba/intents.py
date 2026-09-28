@@ -776,16 +776,22 @@ class Orchestrator:
     async def rotate_settings(self) -> None:
         settings = self.store.settings
         angles, spacings = self.co.angle_options, self.co.spacing_options
-        if settings.angle_1 not in angles or settings.spacing not in spacings:
-            self._log(f"rotate_settings: unknown current value (a1={settings.angle_1}, "
-                      f"sp={settings.spacing}) — defaulting to sequence start")
+        # Advance from the value the owner sees. Unset (None) shows as the first
+        # entry; a stored value the option list no longer holds shows as the first
+        # entry too, which is worth a line (the YAML's GAP-6 drift log).
+        drifted = [f"{name}={value}" for name, value, seq in
+                   (("a1", settings.angle_1, angles), ("sp", settings.spacing, spacings))
+                   if value is not None and value not in seq]
+        if drifted:
+            self._log(f"rotate_settings: unknown current value ({', '.join(drifted)}) — "
+                      "rotating from the sequence start")
         today = self._now().date()
         c_ = self.store.counters
         c_.cuts = {"A": 0, "B": 0}
         c_.week_of = today.isoformat()
         self.co.async_update_settings(
-            angle_1=next_in(angles, settings.angle_1 if settings.angle_1 in angles else None),
-            spacing=next_in(spacings, settings.spacing if settings.spacing in spacings else None),
+            angle_1=next_in(angles, self.co.angle_1),
+            spacing=next_in(spacings, self.co.spacing),
             cutting_height=seasonal_height(today),
             cuts_per_group=seasonal_cuts_per_group(today))
 
