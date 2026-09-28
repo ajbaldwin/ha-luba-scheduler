@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.0-beta.3 — Rollback export
+- **New action: `luba.export_yaml_state`**, the rollback path. It returns Luba Scheduler's state (FSM, session, day, counters, settings) as response data, with the same fields `luba.import_yaml_state` takes, in the formats your existing helpers use. A rollback script writes them back into those helpers. It only reads, so it works in either mode. Export then import changes nothing.
+
 ## 0.2.0-beta.2 — No night-time scheduling after a restart
 - **Fixed: a restart after sunset could schedule the day at night.** After sunset the window close (sunset minus the cutoff) rolls over to tomorrow's, so "still before today's cutoff" read as true all night. A reload or restart after sunset on a mow day then scheduled the day, and the next morning swept it away. A ready edge after sunset could likewise offer a held job. Both checks now require today's cutoff. Nothing ever started at night (optimal needs daylight), but it caused spurious notifications and a stray Scheduled state.
 
