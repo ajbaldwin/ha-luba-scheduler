@@ -55,6 +55,12 @@ def _date_of(iso: str) -> str:
     return iso[:10] if iso else ""
 
 
+def _before_todays_close(now: datetime, close: datetime | None) -> bool:
+    """Before TODAY's start cutoff. The close is built on sun.sun's next_setting,
+    which after sunset is tomorrow's, so `now < close` alone holds all night."""
+    return close is not None and now < close and dt_util.as_local(close).date() == now.date()
+
+
 class Orchestrator:
     def __init__(self, hass: HomeAssistant, coordinator, fsm: FsmWriter,
                  commander: MowerCommander, notifier: Notifier,
@@ -604,7 +610,7 @@ class Orchestrator:
         close = self.co.data.window_close if self.co.data else None
         return (self.co.readings().season_on is True
                 and now >= _today_at(self.opts[c.CONF_SCHEDULER_TIME], now)
-                and close is not None and now < close
+                and _before_todays_close(now, close)
                 and _date_of(self.store.day.evaluated_at) != now.date().isoformat())
 
     # ==== conditions, prompts, window ===============================================
@@ -622,7 +628,7 @@ class Orchestrator:
             return
         snap = self.snap()
         battery = self.battery()
-        in_window = snap.window_close is not None and now < snap.window_close
+        in_window = _before_todays_close(now, snap.window_close)
         battery_ok = battery is not None and battery >= self.opts[c.CONF_RESUME_FLOOR]
         if not (in_window and battery_ok and self.cmd.gate_closed()):
             return
