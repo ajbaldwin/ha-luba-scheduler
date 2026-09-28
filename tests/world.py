@@ -145,7 +145,9 @@ class FakeWorld:
         return st.state if st else None
 
     def set_mode(self, mode: str) -> None:
+        """Activity mode, and the lawn_mower entity's matching state (as Mammotion reports it)."""
         self.hass.states.async_set(self._role(c.ROLE_ACTIVITY), mode)
+        self.hass.states.async_set(self._role(c.ROLE_MOWER), _LAWN_MOWER.get(mode, "docked"))
 
     def set_battery(self, pct: float) -> None:
         self.hass.states.async_set(self._role(c.ROLE_BATTERY), str(pct))
@@ -236,6 +238,9 @@ def _cancel(world: FakeWorld, _data: dict[str, Any]) -> None:
     world.set_mode(c.MODE_READY)
 
 
+_LAWN_MOWER = {c.MODE_WORKING: "mowing", c.MODE_PAUSE: "paused", c.MODE_PAUSED: "paused",
+               c.MODE_RETURNING: "returning"}
+
 _DEFAULTS: dict[str, Reaction] = {
     "mammotion.start_mow": _start_mow, "mammotion.cancel_job": _cancel,
     "lawn_mower.start_mowing": _resume, "lawn_mower.dock": _dock,
@@ -284,6 +289,7 @@ async def build(hass: HomeAssistant, freezer, *, at: datetime | None = None,
     mower = add_mower(hass)
     set_good_day(hass, mower)
     world = FakeWorld(hass, mower).install()
+    world.set_mode(c.MODE_READY)
     world.set_charging(True)
     world.set_progress(0)
     world.set_work_area("Not working")
@@ -311,5 +317,35 @@ async def dispatch(hass: HomeAssistant, entry, *intents: str | tuple[str, dict],
     await settle(hass, entry, freezer)
 
 
+def jump(freezer, delta: timedelta) -> None:
+    """Move the clock WITHOUT firing timers (the state a test wants to act in)."""
+    freezer.tick(delta)
+
+
 def later(hours: float = 0, minutes: float = 0) -> timedelta:
     return timedelta(hours=hours, minutes=minutes)
+
+
+def put(entry, *, state: str | None = None, **fields) -> None:
+    """Test-only: place the store in a given shape (as if earlier days had happened).
+
+    Keys are ``section__field`` (``session__start=...``, ``day__scheduled_group="A"``).
+    """
+    store = entry.runtime_data.store
+    if state is not None:
+        store.fsm.state = state
+    for key, value in fields.items():
+        section, name = key.split("__")
+        setattr(getattr(store, section), name, value)
+    entry.runtime_data.recompute()
+
+
+async def restart(hass: HomeAssistant, entry, freezer, downtime: timedelta = timedelta()) -> None:
+    """Unload the entry (store saved), let ``downtime`` pass, load it again."""
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    if downtime:
+        freezer.tick(downtime)
+        async_fire_time_changed(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await settle(hass, entry, freezer)
