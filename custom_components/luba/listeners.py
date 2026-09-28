@@ -175,19 +175,11 @@ class Listeners:
     @callback
     def _on_gate(self, _event: Event | None = None) -> None:
         """#11: the gate closed (an edge, whatever the sensor's polarity)."""
-        gate_closed = self._gate_closed()
+        gate_closed = self.co.gate_closed()
         before = self._last.get("gate")
         self._last["gate"] = gate_closed
         if gate_closed and before is False:
             self._dispatch("gate_recover")
-
-    def _gate_closed(self) -> bool:
-        entity_id = self.opts.get(c.CONF_GATE)
-        st = self.hass.states.get(entity_id) if entity_id else None
-        if st is None or st.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return False
-        on = st.state == "on"
-        return on if self.opts.get(c.CONF_GATE_POLARITY) == c.GATE_ON_CLOSED else not on
 
     @callback
     def _on_mower(self, event: Event) -> None:

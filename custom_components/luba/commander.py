@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
@@ -81,13 +81,7 @@ class MowerCommander:
     # ---- safety reads ------------------------------------------------------------
 
     def gate_closed(self) -> bool:
-        """Unavailable/unknown always counts as OPEN (fail closed), whatever the polarity."""
-        entity_id = self._opts.get(c.CONF_GATE)
-        st = self._hass.states.get(entity_id) if entity_id else None
-        if st is None or st.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return False
-        on = st.state == STATE_ON
-        return on if self._opts.get(c.CONF_GATE_POLARITY) == c.GATE_ON_CLOSED else not on
+        return self._co.gate_closed()
 
     def adverse_now(self) -> bool:
         return self._co.recompute().adverse

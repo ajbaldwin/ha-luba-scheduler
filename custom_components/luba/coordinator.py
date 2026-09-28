@@ -154,6 +154,16 @@ class LubaCoordinator(DataUpdateCoordinator[Snapshot]):
             return raw
         return dt_util.parse_datetime(raw) if isinstance(raw, str) else None
 
+    def gate_closed(self) -> bool:
+        """The ONE gate reader. Unavailable/unknown/missing counts as OPEN (fail closed),
+        whatever the polarity; the polarity option says what "on" means."""
+        entity_id = self.opts.get(c.CONF_GATE)
+        st = self.hass.states.get(entity_id) if entity_id else None
+        if st is None or st.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return False
+        on = st.state == "on"
+        return on if self.opts.get(c.CONF_GATE_POLARITY) == c.GATE_ON_CLOSED else not on
+
     def readings(self) -> Readings:
         o = self.opts
         sun = self._state(SUN)

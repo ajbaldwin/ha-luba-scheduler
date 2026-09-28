@@ -170,3 +170,11 @@ def test_no_naive_datetimes_in_the_integration():
                 assert src not in ("datetime.now", "datetime.utcnow", "datetime.datetime.now",
                                    "datetime", "datetime.datetime", "date.today"), \
                     f"{name}:{node.lineno} {src}(...)"
+
+
+def test_there_is_one_gate_reader():
+    """Every gate read must agree on what "on" means: only the coordinator applies the polarity."""
+    readers = {name for name, tree in SOURCES.items()
+               if "CONF_GATE_POLARITY" in ast.unparse(tree)
+               and name not in ("const.py", "config_flow.py")}
+    assert readers == {"coordinator.py"}

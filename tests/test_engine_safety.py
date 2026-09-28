@@ -166,6 +166,7 @@ async def test_skip_then_close_window_logs_skipped(hass, freezer):
     world, entry = await _awaiting(hass, freezer)
     await fire_action(hass, entry, world.last_prompt_action(c.ACT_SKIP), freezer)
     assert fsm(entry) == F.SKIPPED
+    assert world.notifications[-1]["message"] == "clear_notification"   # the answered prompt goes
     await tick(hass, entry, freezer, later(hours=4, minutes=20))  # past window close
     assert fsm(entry) == F.IDLE
     assert world.events[-1]["summary"] == "Mowing — Group A, Skipped"

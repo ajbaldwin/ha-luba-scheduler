@@ -138,6 +138,7 @@ async def test_route_never_planned_is_an_error(hass, freezer):
     await fire_action(hass, entry, world.last_prompt_action(c.ACT_START), freezer)
     assert fsm(entry) == F.ERROR
     assert "no route was planned" in world.notifications[-1]["message"]
+    assert len(world.called("mammotion.start_mow")) == 1          # escalates, never retries
 
 
 async def test_late_start_heals_error_to_running(hass, freezer):
@@ -150,7 +151,9 @@ async def test_late_start_heals_error_to_running(hass, freezer):
     world.set_mode(c.MODE_WORKING)
     await settle(hass, entry, freezer)
     assert fsm(entry) == F.RUNNING
-    assert entry.runtime_data.store.session.active_group == "A"
+    store = entry.runtime_data.store
+    assert store.session.active_group == "A"
+    assert store.session.start and store.fsm.error_from == ""       # stamped; origin spent
 
 
 async def test_working_in_error_from_elsewhere_does_not_heal(hass, freezer):
@@ -332,6 +335,7 @@ async def test_clear_error_from_the_button_and_the_notification(hass, freezer):
     await dispatch(hass, entry, ("enter_error", {"error_context": "y"}), freezer=freezer)
     await fire_action(hass, entry, c.ACT_CLEAR_ERROR, freezer)
     assert fsm(entry) == F.IDLE
+    assert entry.runtime_data.store.fsm.error_from == ""            # no stale origin to heal later
     await fire_action(hass, entry, c.ACT_CLEAR_ERROR, freezer)     # stale: ignored
     assert fsm(entry) == F.IDLE
 
