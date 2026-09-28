@@ -188,7 +188,9 @@ async def test_export_then_import_changes_nothing(hass, freezer):
         settings__angle_1=48, settings__spacing=29)     # an unset one exports as the first entry
     lines = _lines(hass)
     await _import(hass, **await _export(hass))
-    assert lines[-1] == "import_yaml_state: 0 field(s) changed"
+    await hass.async_block_till_done()
+    assert [line for line in lines if line.startswith("import_yaml_state")] == [
+        "import_yaml_state: 0 field(s) changed"]
 
 
 async def test_export_is_allowed_in_active_mode(hass, freezer):
