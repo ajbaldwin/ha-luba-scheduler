@@ -331,11 +331,11 @@
         },
         "last_counted_cut": {
           "name": "Last counted cut",
-          "description": "The counter latch, <group>|<date>."
+          "description": "The counter latch: group|date, for example A|2026-09-22."
         },
         "last_logged_cut": {
           "name": "Last logged cut",
-          "description": "The calendar latch, <area>|<date>."
+          "description": "The calendar latch: area|date, for example Group A|2026-09-22."
         },
         "angle_1": {
           "name": "Angle",
