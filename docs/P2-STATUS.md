@@ -9,8 +9,8 @@ The source of truth for the port is `ajbaldwin/homeassistant-config`:
 
 - **P2 (engine) is done and merged**: PR #5, then #7 (after-sunset fix). 300 tests pass (HA 2026.9.4, Python 3.14, `bash tools/test.sh -q`).
 - **Released:** `v0.2.0-beta.1` (#6) and `v0.2.0-beta.2` (#8), both pre-releases. beta.2 fixes the after-sunset cutoff check (below).
-- **P3 shadow started 2026-09-27 ~21:17** on the box, with beta.1. It is in shadow mode, and Options → Mode points the comparison at the YAML FSM. `sensor.luba_state` showed `yaml_state: Idle`, `diverged: false`. Updating the box to beta.2 was pending at the time of writing.
-- **YAML fixes found by the port, merged in the config repo:** v3.1.48 (#204, M7: the zero-length calendar event; deployed 2026-09-27) and v3.1.49 (#205, the after-sunset cutoff; merged, deploy to confirm).
+- **P3 shadow started 2026-09-27 ~21:17** on the box, with beta.1. It is in shadow mode, and Options → Mode points the comparison at the YAML FSM. **beta.2 installed 2026-09-28 06:56**, loaded by an HA restart at 07:05 (the exit criterion's restart).
+- **YAML fixes found by the port, merged in the config repo:** v3.1.48 (#204, M7: the zero-length calendar event; deployed 2026-09-27) and v3.1.49 (#205, the after-sunset cutoff; pulled 2026-09-27 21:30, loaded by the 09-28 07:05 restart).
 
 ### P3 daily review
 
@@ -19,6 +19,13 @@ Read the logbook for `Luba Scheduler` lines:
   - carry-over and adopted-run completions are logged and counted by the port, not the YAML (M7, before v3.1.48 deployed);
   - YAML `Charging` counts as matching port `Paused`.
 - `shadow: would call …` lines show what the port would have commanded.
+- Query (read-only, on the box): `logbook_entry` events whose `shared_data` contains `Luba Scheduler`, joined `events` → `event_types` → `event_data`; the YAML path is `states` for the FSM input_select.
+
+#### Review log
+| Window | Divergences | Notes |
+|---|---|---|
+| 09-27 21:17 → 09-28 08:00 | none | Idle on both sides. 21:17 `reboot_recover` "dispatching schedule_day" after sunset is the bug beta.2 fixes (harmless: Sunday, no group). 07:08 restart on beta.2: "FSM Idle needs no reconciliation". No `would call` lines. |
+| 09-28 08:00 → 08:48 | none | Mow day, Group A on overseed hold. Both skip it: port `schedule_day` at 08:45:00, YAML at 08:45:10; both stay Idle. The port's `would call` lines are the one-minute "Skipped (overseed)" calendar entry and the "No Mow Today" push, matching what the YAML sent. The port's hold (lawn_growth `mowing_allowed`) and the YAML's (its own toggle) agreed. A held day doesn't count toward the exit criterion. |
 - The exit criterion (design Q10): ≥ 10 days, ≥ 2 mow days per un-held group, ≥ 1 restart, every divergence explained. The season is ending (1× from Oct 15), so the design recommends shadowing into November and cutting over in spring.
 
 ## Done
@@ -38,7 +45,7 @@ Read the logbook for `Luba Scheduler` lines:
 | `tests/test_engine_*.py` | The Q9 must-haves and per-intent branches (the list is in `tests/TRACEABILITY.md`). |
 | `tests/replay/` + `tests/test_replay.py` | 09-17 comes from the recorder: the port's FSM path matches the YAML's to within 5 s. 08-01, 08-13, 08-21 and 08-22 are reconstructed from the defect log, because the recorder had already purged them. |
 | `shadow.py` | Shadow comparison. With the YAML FSM entity set in Options → Mode, `sensor.luba_state` shows `yaml_state`, `diverged` and `diverged_since`. A divergence that lasts 5 minutes gets a logbook line, and another when it clears. YAML `Charging` counts as equal to `Paused`. The 09-17 replay in shadow never diverges. |
-| `services.py` | `luba.import_yaml_state` for the P4 cutover. It takes values, not entity ids, so the cutover script renders them from its own helpers with templates. Every field is optional and a re-run is idempotent. It refuses unless the mode is shadow. It restores the FSM through `FsmWriter.restore` (still the one writer) and then runs `reboot_recover`. |
+| `services.py` | `luba.import_yaml_state` for the P4 cutover. It takes values, not entity ids, so the cutover script renders them from its own helpers with templates. Every field is optional and a re-run is idempotent. It refuses unless the mode is shadow. It restores the FSM through `FsmWriter.restore` (still the one writer) and then runs `reboot_recover`. `luba.export_yaml_state` is the rollback (design Q10): read-only, allowed in either mode, it returns the same fields as response data in the YAML helpers' formats (naive local datetimes, the epoch for "none", a resolved angle/spacing). Export → import changes nothing. |
 | `tests/TRACEABILITY.md` | All 290 `luba-tests` functions → a port test, or "retired (reason)". `tests/test_traceability.py` checks that every referenced test exists. |
 
 ### Bugs the new tests found (fixed on this branch)
@@ -70,12 +77,12 @@ Read the logbook for `Luba Scheduler` lines:
 
 ## To do, in order
 
-1. P3: install beta.2 on the box; review the `shadow:` logbook lines daily; explain every divergence. A divergence that is a port bug gets a fix, a beta and a note here.
-2. Before P4: write `luba.export_yaml_state` (the rollback path, design Q10), and the config-repo cutover script that calls `luba.import_yaml_state`. Each of its fields is a template over the YAML helper it replaces (`fsm_state: "{{ states('<the YAML FSM input_select>') }}"`, …). The service takes values, so no helper names live in this public repo.
+1. P3: review the `shadow:` logbook lines daily; explain every divergence. A divergence that is a port bug gets a fix, a beta and a note here.
+2. Before P4: merge the config-repo scripts (below) and release the export service in a beta. Done in code: `luba.export_yaml_state` here; `packages/luba_port/luba_port.yaml` in the config repo holds `script.luba_port_cutover` (every import field a template over the YAML helper it replaces) and `script.luba_port_rollback` (export → those helpers, FSM included). Both refuse while any YAML automation is on or the mode isn't shadow; `luba-tests/test_port_cutover.py` pins the field ↔ helper mapping both ways.
 3. P4 cutover (design Q10): evening, mower docked. `git status` in `/config` → disable the 18 `automation.luba_*` (do not delete) → import → repoint the lawn dashboard → Options → Mode → active (needs the confirmation, and is refused while a YAML automation is on) → watch the next 08:45.
 
-### Known behaviour kept from the YAML (owner may revisit)
-- A held job on a mow day waits for the fresh-start readiness floor (95 %), not the 20 % resume floor. `schedule_day` writes `Scheduled` over it and `prompt_user` gates on readiness. On a non-mow day, recovery resumes at 20 %.
+### Known behaviour kept from the YAML
+- A held job on a mow day waits for the fresh-start readiness floor (95 %), not the 20 % resume floor. `schedule_day` writes `Scheduled` over it and `prompt_user` gates on readiness. On a non-mow day, recovery resumes at 20 %. **Owner decision 2026-09-28: keep it.** A full battery makes it less likely that the job docks partway and finishes late, which matters more as the days shorten.
 
 ### Fixed after P2 (#7, beta.2)
 - The start-cutoff checks compare against TODAY's cutoff. After sunset, `sun.sun`'s `next_setting` (and so the window close) is tomorrow's. `reboot_recover`'s missed-schedule check fired on a reload at 21:13 (live, harmless on a Sunday), and `conditions_recovered` read a post-sunset ready edge as in window. The same fix is YAML v3.1.49.

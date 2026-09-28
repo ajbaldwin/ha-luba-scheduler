@@ -358,6 +358,10 @@
           "description": "Whether a ready prompt starts the mow by itself."
         }
       }
+    },
+    "export_yaml_state": {
+      "name": "Export YAML state",
+      "description": "Return the FSM, session, day, counters and settings in the YAML helpers' formats, for a rollback. The rollback script writes them into its own helpers. Read-only; allowed in either mode."
     }
   },
   "exceptions": {

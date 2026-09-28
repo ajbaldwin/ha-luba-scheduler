@@ -63,3 +63,4 @@ import_yaml_state:
     auto_start:
       selector:
         boolean:
+export_yaml_state:
