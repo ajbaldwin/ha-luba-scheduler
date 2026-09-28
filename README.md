@@ -5,7 +5,7 @@ A Home Assistant integration that schedules and supervises a Mammotion Luba robo
 - It asks before starting and verifies that the job really started.
 - It stops the mower when the weather turns or the light fails.
 
-**Status: read-only preview (P1).** This build can be set up. It publishes condition, readiness, window and angle entities, and raises repair issues for broken mower bindings. It never commands the mower, sends notifications or writes to a calendar.
+**Status: beta (P2), shadow mode by default.** The engine schedules, prompts, starts, verifies, aborts, resumes, logs and counts. In shadow mode, the install default, every mower command, notification and calendar write is a logged no-op, so an existing automation can keep commanding the mower. Its decisions can be compared against the automation's (Options → Mode). Switching to active needs a confirmation and is refused while any `automation.luba_*` is on.
 
 ## Development
 
