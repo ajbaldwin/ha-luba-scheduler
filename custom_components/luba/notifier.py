@@ -6,7 +6,7 @@ intent that sent it. In shadow mode both are logged no-ops.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -61,6 +61,13 @@ class Notifier:
         entity_id = self._co.opts.get(c.CONF_CALENDAR)
         if not entity_id:
             return
+        # calendar.create_event rejects end <= start (vol.Invalid). The YAML's
+        # adopted-run completion sent start == end, and because vol.Invalid is not
+        # a HomeAssistantError, continue_on_error did not catch it: the script
+        # stopped before the notify, the latch and the cut count (review M7,
+        # 2026-09-17). A point event is written one minute long instead.
+        if end <= start:
+            end = start + timedelta(minutes=1)
         await self._call("calendar", "create_event", {
             "entity_id": entity_id, "summary": summary, "description": description,
             "start_date_time": start.strftime("%Y-%m-%d %H:%M:%S"),

@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.calendar import CREATE_EVENT_SCHEMA
 from homeassistant.const import EVENT_LOGBOOK_ENTRY
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, entity_registry as er
@@ -66,7 +67,10 @@ class FakeWorld:
             self.hass.services.async_register(domain, service, self._mower_handler(full),
                                               schema=schema)
         self.hass.services.async_register("notify", "test_phone", self._on_notify)
-        self.hass.services.async_register("calendar", "create_event", self._on_calendar)
+        # The real schema: it rejects end <= start, which is how the YAML lost the
+        # 2026-09-17 completion (review M7).
+        self.hass.services.async_register("calendar", "create_event", self._on_calendar,
+                                          schema=CREATE_EVENT_SCHEMA)
         return self
 
     def _mower_handler(self, full: str):
@@ -171,6 +175,20 @@ class FakeWorld:
                 device_id=self.mower.device_id, suggested_object_id=f"test_task_area_{zone_hash}")
             self.hass.states.async_set(entry.entity_id, "0")
             self.task_areas[zone_hash] = entry.entity_id
+
+    def add_task_area(self, zone: str, state: str = "MOWING") -> None:
+        """Mammotion adds one zone's task-area sensor to the running job."""
+        zone_hash = self.zone_hash(zone)
+        entry = er.async_get(self.hass).async_get_or_create(
+            "sensor", c.MAMMOTION, f"{UNIQUE}_{zone_hash}{c.TASK_AREA_SUFFIX}",
+            device_id=self.mower.device_id, suggested_object_id=f"test_task_area_{zone_hash}")
+        self.hass.states.async_set(entry.entity_id, state)
+        self.task_areas[zone_hash] = entry.entity_id
+
+    def remove_task_area(self, zone: str) -> None:
+        entity_id = self.task_areas.pop(self.zone_hash(zone))
+        er.async_get(self.hass).async_remove(entity_id)
+        self.hass.states.async_remove(entity_id)
 
     def start_job_for(self, *zones: str) -> None:
         self.start_job([self.zone_hash(z) for z in zones])
