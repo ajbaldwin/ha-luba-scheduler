@@ -1,4 +1,9 @@
-"""luba.import_yaml_state: bring the YAML package's state over at cutover (design Q4, P4).
+"""luba.import_yaml_state / luba.export_yaml_state: move state across at cutover and rollback.
+
+``import_yaml_state`` brings the YAML package's state over at cutover (design Q4, P4).
+``export_yaml_state`` is the rollback path (design Q10): it returns the same fields,
+in the YAML helpers' formats, as service response data; the rollback script writes
+them back into its own helpers. It only reads, so it runs in either mode.
 
 The service takes VALUES, not entity ids, so no installation's helper names live
 in this code: the cutover script renders them from its own helpers
@@ -16,7 +21,7 @@ from collections.abc import Callable
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
@@ -27,6 +32,7 @@ from .engine.fsm import STATES
 from .shadow import EQUIVALENT
 
 SERVICE_IMPORT = "import_yaml_state"
+SERVICE_EXPORT = "export_yaml_state"
 _BLANK = ("", "unknown", "unavailable", "none", "None")
 _EPOCH = "1970-01-01"          # the YAML's "no session" value for session_start
 
@@ -125,6 +131,33 @@ SCHEMA = vol.Schema({
 })
 
 
+def _wall(value: str) -> str:
+    """An aware ISO timestamp as the YAML's naive local wall clock; the epoch for none."""
+    parsed = dt_util.parse_datetime(value) if value else None
+    if parsed is None:
+        return f"{_EPOCH} 00:00:00"
+    return dt_util.as_local(parsed).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def export_state(co) -> dict[str, Any]:
+    """The import's fields, as the YAML holds them. ``import_yaml_state`` reads this back
+    unchanged (to the second), so an export → import round trip changes nothing."""
+    store = co.store
+    data: dict[str, Any] = {"fsm_state": store.fsm.state}
+    for key, (section, attr) in FIELDS.items():
+        data[key] = getattr(getattr(store, section), attr)
+    data.update(
+        session_start=_wall(store.session.start),
+        evaluated_at=_wall(store.day.evaluated_at),
+        session_battery_start=store.session.battery_start or 0,    # the YAML helper's floor
+        angle_1=co.angle_1,                       # resolved: an unset one is the first entry
+        spacing=co.spacing,
+    )
+    for group in c.GROUPS:
+        data[f"cuts_{group.lower()}"] = store.counters.cuts.get(group, 0)
+    return data
+
+
 @callback
 def async_register_services(hass: HomeAssistant, co) -> Callable[[], None]:
     async def _import(call: ServiceCall) -> None:
@@ -153,9 +186,17 @@ def async_register_services(hass: HomeAssistant, co) -> Callable[[], None]:
                         f"{': ' + ', '.join(changed) if changed else ''}")
         co.dispatcher.dispatch("reboot_recover")
 
+    async def _export(_call: ServiceCall) -> ServiceResponse:
+        data = export_state(co)
+        audit.log(hass, f"export_yaml_state: read (FSM {data['fsm_state']})")
+        return data
+
     hass.services.async_register(c.DOMAIN, SERVICE_IMPORT, _import, schema=SCHEMA)
+    hass.services.async_register(c.DOMAIN, SERVICE_EXPORT, _export,
+                                 supports_response=SupportsResponse.ONLY)
 
     @callback
     def _remove() -> None:
         hass.services.async_remove(c.DOMAIN, SERVICE_IMPORT)
+        hass.services.async_remove(c.DOMAIN, SERVICE_EXPORT)
     return _remove

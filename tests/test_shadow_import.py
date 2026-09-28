@@ -151,3 +151,46 @@ async def test_an_imported_prompt_is_rearmed(hass, freezer):
     assert entry.runtime_data.store.day.ack_deadline
     await tick(hass, entry, freezer, later(minutes=31))
     assert entry.runtime_data.store.day.prompt_id                # Luba's own prompt now
+
+
+# ---- export (rollback, design Q10) ----------------------------------------------------------
+
+async def _export(hass):
+    return await hass.services.async_call(c.DOMAIN, "export_yaml_state", {},
+                                          blocking=True, return_response=True)
+
+
+async def test_export_gives_the_yaml_formats(hass, freezer):
+    world, entry = await build(hass, freezer, active=False, at=local(*SUNDAY))
+    world.hold_docked("Back", battery=60)
+    put(entry, state=F.PAUSED, fsm__prior_state=F.RUNNING,
+        session__start=local(2026, 9, 26, 14, 5).isoformat(), session__battery_start=98.0,
+        session__work_area="Back", session__recharge_count=1,
+        session__abort_reason="Weather: rain", session__active_group="B",
+        day__scheduled_group="B", counters__last_counted_cut="A|2026-09-22")
+    entry.runtime_data.store.counters.cuts = {"A": 1, "B": 0}
+    data = await _export(hass)
+    assert data["fsm_state"] == "Paused" and data["prior_state"] == "Running"
+    assert data["session_start"] == "2026-09-26 14:05:00"          # naive local wall clock
+    assert data["evaluated_at"] == "1970-01-01 00:00:00"           # the YAML's "none"
+    assert (data["session_battery_start"], data["session_recharge_count"]) == (98.0, 1)
+    assert (data["cuts_a"], data["cuts_b"]) == (1, 0)
+    assert data["angle_1"] == entry.runtime_data.angle_1           # resolved, never None
+    assert world.calls == []
+
+
+async def test_export_then_import_changes_nothing(hass, freezer):
+    world, entry = await build(hass, freezer, active=False, at=local(*SUNDAY))
+    world.hold_docked("Back", battery=60)
+    put(entry, state=F.PAUSED, session__start=local(2026, 9, 26, 14, 5).isoformat(),
+        session__battery_start=98.0, session__work_area="Back", session__active_group="B",
+        day__evaluated_at=local(2026, 9, 26, 8, 45).isoformat(), day__scheduled_group="B",
+        settings__angle_1=48, settings__spacing=29)     # an unset one exports as the first entry
+    lines = _lines(hass)
+    await _import(hass, **await _export(hass))
+    assert lines[-1] == "import_yaml_state: 0 field(s) changed"
+
+
+async def test_export_is_allowed_in_active_mode(hass, freezer):
+    await build(hass, freezer)                                     # active
+    assert (await _export(hass))["fsm_state"] == F.IDLE
