@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.0-beta.2 — No night-time scheduling after a restart
+- **Fixed: a restart after sunset could schedule the day at night.** After sunset the window close (sunset minus the cutoff) rolls over to tomorrow's, so "still before today's cutoff" read as true all night. A reload or restart after sunset on a mow day then scheduled the day, and the next morning swept it away. A ready edge after sunset could likewise offer a held job. Both checks now require today's cutoff. Nothing ever started at night (optimal needs daylight), but it caused spurious notifications and a stray Scheduled state.
+
 ## 0.2.0-beta.1 — The engine, in shadow mode
 - **The scheduler engine.** Luba Scheduler now runs the whole mowing day. It schedules the day's zone group, prompts on your phone (Start / Delay / Skip) or starts by itself when auto-start is on, verifies that the mower really started and planned a route, and follows telemetry to completion. It then logs the mow to the calendar and counts the group's cut. Weather aborts and resumes, a dusk hard stop, restart recovery, the window close and the weekly settings rotation are included.
 - **Installs in shadow mode.** It makes and logs every decision, but in shadow mode mower commands, notifications and calendar writes are no-ops. Your existing automation stays the only thing commanding the mower. Active mode (Options → Mode) needs a confirmation and is refused while any `automation.luba_*` is on.
