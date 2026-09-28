@@ -80,8 +80,8 @@ Read the logbook for `Luba Scheduler` lines:
 2. Before P4: merge the config-repo scripts (below) and release the export service in a beta. Done in code: `luba.export_yaml_state` here; `packages/luba_port/luba_port.yaml` in the config repo holds `script.luba_port_cutover` (every import field a template over the YAML helper it replaces) and `script.luba_port_rollback` (export → those helpers, FSM included). Both refuse while any YAML automation is on or the mode isn't shadow; `luba-tests/test_port_cutover.py` pins the field ↔ helper mapping both ways.
 3. P4 cutover (design Q10): evening, mower docked. `git status` in `/config` → disable the 18 `automation.luba_*` (do not delete) → import → repoint the lawn dashboard → Options → Mode → active (needs the confirmation, and is refused while a YAML automation is on) → watch the next 08:45.
 
-### Known behaviour kept from the YAML (owner may revisit)
-- A held job on a mow day waits for the fresh-start readiness floor (95 %), not the 20 % resume floor. `schedule_day` writes `Scheduled` over it and `prompt_user` gates on readiness. On a non-mow day, recovery resumes at 20 %.
+### Known behaviour kept from the YAML
+- A held job on a mow day waits for the fresh-start readiness floor (95 %), not the 20 % resume floor. `schedule_day` writes `Scheduled` over it and `prompt_user` gates on readiness. On a non-mow day, recovery resumes at 20 %. **Owner decision 2026-09-28: keep it.** A full battery makes it less likely that the job docks partway and finishes late, which matters more as the days shorten.
 
 ### Fixed after P2 (#7, beta.2)
 - The start-cutoff checks compare against TODAY's cutoff. After sunset, `sun.sun`'s `next_setting` (and so the window close) is tomorrow's. `reboot_recover`'s missed-schedule check fired on a reload at 21:13 (live, harmless on a Sunday), and `conditions_recovered` read a post-sunset ready edge as in window. The same fix is YAML v3.1.49.
