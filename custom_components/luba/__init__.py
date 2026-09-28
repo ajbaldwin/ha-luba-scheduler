@@ -18,6 +18,8 @@ from .health import async_setup_health
 from .intents import Orchestrator
 from .listeners import Listeners
 from .notifier import Notifier
+from .services import async_register_services
+from .shadow import ShadowCompare
 from .store import LubaStore
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.SELECT,
@@ -45,6 +47,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: LubaConfigEntry) -> bool
 
     co.async_start()
     entry.async_on_unload(co.async_stop)
+    co.shadow = ShadowCompare(hass, co)
+    co.shadow.async_start()
+    entry.async_on_unload(co.shadow.async_stop)
+    entry.async_on_unload(async_register_services(hass, co))
     listeners = Listeners(hass, co, dispatcher.dispatch, co.notifier)
     listeners.async_start()
     entry.async_on_unload(listeners.async_stop)

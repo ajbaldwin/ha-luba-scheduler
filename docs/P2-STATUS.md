@@ -5,7 +5,7 @@ Branch `feat/p2-engine`, draft PR ajbaldwin/ha-luba-scheduler#5. The source of t
 - the YAML being ported: `packages/luba/scripts.yaml` (`script.luba_orchestrator` + `script.luba_fsm_transition`) and `packages/luba/automations.yaml`, at the P0 fix commit
 - the transition contract: `docs/luba_fsm_transition_spec.md`
 
-**Steps 1–4 are done. 282 tests pass** (HA 2026.9.4, Python 3.14, `bash tools/test.sh -q`). Next: step 5 (shadow comparison attributes), then the PR, `0.2.0-beta.1`, and P3 shadow on the box.
+**Steps 1–5 are done. 297 tests pass** (HA 2026.9.4, Python 3.14, `bash tools/test.sh -q`). Next: the PR, `0.2.0-beta.1`, and P3 shadow on the box.
 
 ## Done
 
@@ -23,6 +23,8 @@ Branch `feat/p2-engine`, draft PR ajbaldwin/ha-luba-scheduler#5. The source of t
 | `tests/world.py` | The fake world. It fakes `mammotion.start_mow`/`cancel_job` and `lawn_mower.start_mowing`/`dock`: calls are recorded, each has a default reaction on activity mode, task areas and charging, and a test can script overrides. It also fakes `notify` and `calendar.create_event`; the calendar uses HA's real schema. `settle()` advances HA time while an intent waits. |
 | `tests/test_engine_*.py` | The Q9 must-haves and per-intent branches (the list is in `tests/TRACEABILITY.md`). |
 | `tests/replay/` + `tests/test_replay.py` | 09-17 comes from the recorder: the port's FSM path matches the YAML's to within 5 s. 08-01, 08-13, 08-21 and 08-22 are reconstructed from the defect log, because the recorder had already purged them. |
+| `shadow.py` | Shadow comparison. With the YAML FSM entity set in Options → Mode, `sensor.luba_state` shows `yaml_state`, `diverged` and `diverged_since`. A divergence that lasts 5 minutes gets a logbook line, and another when it clears. YAML `Charging` counts as equal to `Paused`. The 09-17 replay in shadow never diverges. |
+| `services.py` | `luba.import_yaml_state` for the P4 cutover. It takes values, not entity ids, so the cutover script renders them from its own helpers with templates. Every field is optional and a re-run is idempotent. It refuses unless the mode is shadow. It restores the FSM through `FsmWriter.restore` (still the one writer) and then runs `reboot_recover`. |
 | `tests/TRACEABILITY.md` | All 290 `luba-tests` functions → a port test, or "retired (reason)". `tests/test_traceability.py` checks that every referenced test exists. |
 
 ### Bugs the new tests found (fixed on this branch)
@@ -54,8 +56,8 @@ Branch `feat/p2-engine`, draft PR ajbaldwin/ha-luba-scheduler#5. The source of t
 
 ## To do, in order
 
-5. **Shadow comparison.** Add `yaml_state` and `diverged` attributes on `sensor.luba_state`, read from `input_select.lawn_care_mower_state`; then `luba.import_yaml_state` (design Q4, P4).
-6. Mark PR #5 ready → owner review → release `0.2.0-beta.1` → P3 shadow on the box.
+6. Mark PR #5 ready → owner review → release `0.2.0-beta.1` → P3 shadow on the box: set the YAML FSM entity in Options → Mode, and review the `shadow:` logbook lines daily.
+7. At P4: a one-off script in the config repo calls `luba.import_yaml_state`, each field a template over the YAML helper it replaces (`fsm_state: "{{ states('<the YAML FSM input_select>') }}"`, …). `luba.export_yaml_state` for rollback (design Q10) is not written yet.
 
 ## Watch item (unchanged)
 

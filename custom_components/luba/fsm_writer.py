@@ -86,3 +86,26 @@ class FsmWriter:
         _LOGGER.info("%s", message)
         self._on_change()
         return TransitionResult("ok", from_state, to_state, corr)
+
+    async def restore(self, to_state: str, source: str = "import") -> TransitionResult:
+        """Set the state an import brings over (luba.import_yaml_state, cutover P4).
+
+        A restore, not a transition: it copies where the YAML's FSM already is, so
+        the legality table does not apply. The same save-then-log contract does.
+        """
+        from_state = self._store.fsm.state
+        corr = new_corr("import_yaml_state")
+        if to_state not in STATES:
+            raise TransitionRefused(from_state, to_state, "import_yaml_state", "unknown state")
+        if to_state == from_state:
+            return TransitionResult("noop", from_state, to_state, corr)
+        fsm = self._store.fsm
+        fsm.state = to_state
+        fsm.last_transition_at = dt_util.now().isoformat()
+        fsm.last_corr = corr
+        await self._store.async_save()
+        message = f"{from_state} -> {to_state} [imported from the YAML] corr={corr} src={source}"
+        audit.log(self._hass, message, name=f"{TITLE} FSM")
+        _LOGGER.info("%s", message)
+        self._on_change()
+        return TransitionResult("ok", from_state, to_state, corr)

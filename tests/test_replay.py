@@ -94,3 +94,21 @@ async def test_0822_an_error_at_close_after_a_mow_is_swept_silently(hass, freeze
     assert run.path[-2:] == [(F.IDLE, F.ERROR), (F.ERROR, F.IDLE)]
     assert not any(t.endswith("No Mow Today") for t in _titles(run))
     assert [e["summary"] for e in run.world.events] == ["Mowing — Group B"]
+
+
+
+async def test_0917_in_shadow_never_diverges_from_the_yaml(hass, freezer):
+    """P3 in miniature: shadow mode, the YAML's recorded FSM fed in beside the port's.
+    No divergence lasts long enough to be logged."""
+    yaml = "input_select.yaml_fsm"
+    steps = [*DAY_0917.steps, *(S(t, "state", yaml, to) for t, _, to in YAML_0917)]
+    steps.sort(key=lambda s: s.at)                      # stable: same-second order is kept
+    day = replace(DAY_0917, steps=steps, inputs={**DAY_0917.inputs, yaml: F.IDLE},
+                  options={c.CONF_YAML_STATE: yaml, c.CONF_MODE: c.MODE_SHADOW})
+    lines = []
+    hass.bus.async_listen("logbook_entry", lambda e: lines.append(e.data.get("message", "")))
+    run = await replay(hass, freezer, day)
+    assert run.path == [(frm, to) for _, frm, to in YAML_0917]
+    assert not any(line.startswith("shadow: diverged") for line in lines)
+    assert hass.states.get(c.STATE_ENTITY_ID).attributes["diverged"] is False
+    assert run.world.calls == []

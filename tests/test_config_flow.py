@@ -166,3 +166,18 @@ async def test_options_active_refused_while_yaml_automation_on(hass):
     await hass.async_block_till_done()
     assert entry.options[c.CONF_MODE] == c.MODE_ACTIVE
     assert "confirm_active" not in entry.options
+
+
+
+async def test_options_mode_sets_and_clears_the_yaml_comparison(hass):
+    mower = add_mower(hass)
+    entry = await setup_luba(hass, mower)
+    result = await _options_step(hass, entry, "mode")
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {c.CONF_MODE: c.MODE_SHADOW, c.CONF_YAML_STATE: "input_select.yaml_fsm"})
+    await hass.async_block_till_done()
+    assert entry.options[c.CONF_YAML_STATE] == "input_select.yaml_fsm"
+    result = await _options_step(hass, entry, "mode")
+    await hass.config_entries.options.async_configure(result["flow_id"], {c.CONF_MODE: c.MODE_SHADOW})
+    await hass.async_block_till_done()
+    assert c.CONF_YAML_STATE not in entry.options

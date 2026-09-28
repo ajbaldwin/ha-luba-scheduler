@@ -228,19 +228,21 @@ def _mode_schema(values: dict) -> vol.Schema:
             SelectSelector(SelectSelectorConfig(options=[c.MODE_SHADOW, c.MODE_ACTIVE],
                                                 translation_key="mode")),
         vol.Optional(CONF_CONFIRM_ACTIVE, default=False): BooleanSelector(),
+        vol.Optional(c.CONF_YAML_STATE, description=_suggest(values.get(c.CONF_YAML_STATE))):
+            _entity(["input_select", "select", "sensor"]),
     })
 
 
 def _validate_mode(hass: HomeAssistant, user_input: dict) -> tuple[dict, dict, dict]:
     """Returns (options_update, errors, placeholders). Shadow is always accepted."""
-    mode = user_input[c.CONF_MODE]
-    if mode != c.MODE_ACTIVE:
-        return {c.CONF_MODE: c.MODE_SHADOW}, {}, {}
+    extra = _clean({c.CONF_YAML_STATE: user_input.get(c.CONF_YAML_STATE)})
+    if user_input[c.CONF_MODE] != c.MODE_ACTIVE:
+        return {c.CONF_MODE: c.MODE_SHADOW, **extra}, {}, {}
     if not user_input.get(CONF_CONFIRM_ACTIVE):
         return {}, {CONF_CONFIRM_ACTIVE: "confirm_active"}, {}
     if yaml_on := yaml_automations_on(hass):
         return {}, {"base": "yaml_still_active"}, {"count": str(len(yaml_on))}
-    return {c.CONF_MODE: c.MODE_ACTIVE}, {}, {}
+    return {c.CONF_MODE: c.MODE_ACTIVE, **extra}, {}, {}
 
 
 # ---- flows ---------------------------------------------------------------------------
@@ -367,6 +369,6 @@ class LubaOptionsFlow(config_entries.OptionsFlowWithReload):
             update, errors, found = _validate_mode(self.hass, user_input)
             placeholders.update(found)
             if not errors:
-                return self._save(update)
+                return self._save(update, drop=(c.CONF_YAML_STATE,))
         return self.async_show_form(step_id="mode", data_schema=_mode_schema(self._values),
                                     errors=errors, description_placeholders=placeholders)

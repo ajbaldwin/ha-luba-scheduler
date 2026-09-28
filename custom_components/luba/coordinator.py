@@ -75,6 +75,7 @@ class LubaCoordinator(DataUpdateCoordinator[Snapshot]):
         self.commander = None
         self.notifier = None
         self.orchestrator = None
+        self.shadow = None
 
     # ---- settings (owner-writable, exposed as select/number) -------------------
 
@@ -118,7 +119,7 @@ class LubaCoordinator(DataUpdateCoordinator[Snapshot]):
         ids = [SUN]
         for key in (c.CONF_SEASON, c.CONF_WEATHER, c.CONF_PRECIP_TYPE, c.CONF_PRECIP_CHANCE,
                     c.CONF_CANOPY, c.CONF_LIGHTNING_DISTANCE, c.CONF_LIGHTNING_STRIKE,
-                    *c.CONF_DRY.values(), *c.CONF_MOW_ALLOWED.values()):
+                    *c.CONF_DRY.values(), *c.CONF_MOW_ALLOWED.values(), c.CONF_YAML_STATE):
             if self.opts.get(key):
                 ids.append(self.opts[key])
         for role in (c.ROLE_CAMERA, c.ROLE_RTK_FIX, c.ROLE_BATTERY):

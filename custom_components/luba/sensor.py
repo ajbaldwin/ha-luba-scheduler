@@ -43,6 +43,7 @@ class StateSensor(LubaEntity, SensorEntity):
             "session_start": s.session.start, "session_battery_start": s.session.battery_start,
             "session_work_area": s.session.work_area, "abort_reason": s.session.abort_reason,
             "ack_deadline": s.day.ack_deadline,
+            **(self.coordinator.shadow.attributes() if self.coordinator.shadow else {}),
         }
 
 

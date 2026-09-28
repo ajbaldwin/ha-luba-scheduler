@@ -9,6 +9,8 @@ STATE_ENTITY_ID = "sensor.luba_state"
 # notify and calendar call becomes a logged no-op, so exactly one system (the
 # YAML package) commands the mower until cutover.
 CONF_MODE = "mode"
+# The YAML package's FSM entity, compared against in shadow mode (optional).
+CONF_YAML_STATE = "yaml_state_entity"
 MODE_SHADOW = "shadow"
 MODE_ACTIVE = "active"
 
