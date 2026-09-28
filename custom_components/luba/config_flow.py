@@ -14,9 +14,11 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     DeviceSelector, DeviceSelectorConfig, EntityFilterSelectorConfig, EntitySelector,
     EntitySelectorConfig, NumberSelector, NumberSelectorConfig, NumberSelectorMode,
-    SelectSelector, SelectSelectorConfig, SelectSelectorMode, TextSelector)
+    BooleanSelector, SelectSelector, SelectSelectorConfig, SelectSelectorMode, TextSelector,
+    TimeSelector)
 
 from . import const as c
+from .commander import yaml_automations_on
 from .mammotion import area_switches, binding_for, derive_roles
 
 
@@ -184,6 +186,65 @@ def _validate_tuning(user_input: dict) -> tuple[dict, dict]:
     return out, errors
 
 
+# ---- timing and mode (options only) --------------------------------------------------
+
+TIMING_NUMBERS: dict[str, tuple[float, float, str | None]] = {
+    c.CONF_START_VERIFY: (10, 600, "s"),
+    c.CONF_START_ATTEMPTS: (1, 10, None),
+    c.CONF_ROUTE_VERIFY: (10, 600, "s"),
+    c.CONF_REPROMPT: (5, 240, "min"),
+    c.CONF_CANCEL_TIMEOUT: (10, 600, "s"),
+    c.CONF_RESUME_FLOOR: (5, 100, "%"),
+    c.CONF_OFFLINE_TIMEOUT: (1, 60, "min"),
+    c.CONF_IDLE_RECONCILE: (1, 60, "min"),
+}
+TIMES = (c.CONF_SCHEDULER_TIME, c.CONF_ROTATION_TIME)
+CONF_CONFIRM_ACTIVE = "confirm_active"
+
+
+def _timing_schema(values: dict) -> vol.Schema:
+    fields: dict = {vol.Required(key, default=values[key]): TimeSelector() for key in TIMES}
+    fields.update({
+        vol.Required(key, default=values[key]): _number(lo, hi, 1, unit)
+        for key, (lo, hi, unit) in TIMING_NUMBERS.items()
+    })
+    return vol.Schema(fields)
+
+
+def _validate_timing(user_input: dict, values: dict) -> tuple[dict, dict]:
+    out: dict[str, Any] = {key: int(user_input[key]) for key in TIMING_NUMBERS}
+    errors = {}
+    for key in TIMES:               # TimeSelector has validated it; store HH:MM:SS
+        h, m, s = (int(p) for p in (str(user_input[key]).split(":") + ["0", "0"])[:3])
+        out[key] = f"{h:02d}:{m:02d}:{s:02d}"
+    if out[c.CONF_RESUME_FLOOR] > values[c.CONF_START_FLOOR]:
+        errors[c.CONF_RESUME_FLOOR] = "resume_above_start"
+    return out, errors
+
+
+def _mode_schema(values: dict) -> vol.Schema:
+    return vol.Schema({
+        vol.Required(c.CONF_MODE, default=values.get(c.CONF_MODE, c.MODE_SHADOW)):
+            SelectSelector(SelectSelectorConfig(options=[c.MODE_SHADOW, c.MODE_ACTIVE],
+                                                translation_key="mode")),
+        vol.Optional(CONF_CONFIRM_ACTIVE, default=False): BooleanSelector(),
+        vol.Optional(c.CONF_YAML_STATE, description=_suggest(values.get(c.CONF_YAML_STATE))):
+            _entity(["input_select", "select", "sensor"]),
+    })
+
+
+def _validate_mode(hass: HomeAssistant, user_input: dict) -> tuple[dict, dict, dict]:
+    """Returns (options_update, errors, placeholders). Shadow is always accepted."""
+    extra = _clean({c.CONF_YAML_STATE: user_input.get(c.CONF_YAML_STATE)})
+    if user_input[c.CONF_MODE] != c.MODE_ACTIVE:
+        return {c.CONF_MODE: c.MODE_SHADOW, **extra}, {}, {}
+    if not user_input.get(CONF_CONFIRM_ACTIVE):
+        return {}, {CONF_CONFIRM_ACTIVE: "confirm_active"}, {}
+    if yaml_on := yaml_automations_on(hass):
+        return {}, {"base": "yaml_still_active"}, {"count": str(len(yaml_on))}
+    return {c.CONF_MODE: c.MODE_ACTIVE, **extra}, {}, {}
+
+
 # ---- flows ---------------------------------------------------------------------------
 
 class LubaConfigFlow(config_entries.ConfigFlow, domain=c.DOMAIN):
@@ -244,7 +305,8 @@ class LubaOptionsFlow(config_entries.OptionsFlowWithReload):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         return self.async_show_menu(step_id="init",
-                                    menu_options=["mower", "zones", "inputs", "gate", "tuning"])
+                                    menu_options=["mower", "zones", "inputs", "gate", "tuning",
+                                                  "timing", "mode"])
 
     async def async_step_mower(self, user_input: dict[str, Any] | None = None):
         errors, placeholders = {}, {"missing": ""}
@@ -291,3 +353,22 @@ class LubaOptionsFlow(config_entries.OptionsFlowWithReload):
                 return self._save(update)
         return self.async_show_form(step_id="tuning", data_schema=_tuning_schema(self._values),
                                     errors=errors)
+
+    async def async_step_timing(self, user_input: dict[str, Any] | None = None):
+        errors = {}
+        if user_input is not None:
+            update, errors = _validate_timing(user_input, self._values)
+            if not errors:
+                return self._save(update)
+        return self.async_show_form(step_id="timing", data_schema=_timing_schema(self._values),
+                                    errors=errors)
+
+    async def async_step_mode(self, user_input: dict[str, Any] | None = None):
+        errors, placeholders = {}, {"count": "0"}
+        if user_input is not None:
+            update, errors, found = _validate_mode(self.hass, user_input)
+            placeholders.update(found)
+            if not errors:
+                return self._save(update, drop=(c.CONF_YAML_STATE,))
+        return self.async_show_form(step_id="mode", data_schema=_mode_schema(self._values),
+                                    errors=errors, description_placeholders=placeholders)

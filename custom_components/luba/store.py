@@ -44,7 +44,7 @@ class Session:
 @dataclass
 class Day:
     scheduled_group: str = ""
-    scheduled_for: str = ""           # ISO date
+    evaluated_at: str = ""            # ISO datetime: schedule_day handled this date
     ack_deadline: str = ""
     prompt_id: str = ""
     skip_recorded_for: str = ""
@@ -65,6 +65,7 @@ class Settings:
     angle_1: int | None = None        # None = first entry of the configured list
     spacing: int | None = None
     cutting_height: int = 70
+    auto_start: bool = False
 
 
 @dataclass
