@@ -25,6 +25,7 @@ Read the logbook for `Luba Scheduler` lines:
 | Window | Divergences | Notes |
 |---|---|---|
 | 09-27 21:17 → 09-28 08:00 | none | Idle on both sides. 21:17 `reboot_recover` "dispatching schedule_day" after sunset is the bug beta.2 fixes (harmless: Sunday, no group). 07:08 restart on beta.2: "FSM Idle needs no reconciliation". No `would call` lines. |
+| 09-28 08:00 → 08:48 | none | Mow day, Group A on overseed hold. Both skip it: port `schedule_day` at 08:45:00, YAML at 08:45:10; both stay Idle. The port's `would call` lines are the one-minute "Skipped (overseed)" calendar entry and the "No Mow Today" push, matching what the YAML sent. The port's hold (lawn_growth `mowing_allowed`) and the YAML's (its own toggle) agreed. A held day doesn't count toward the exit criterion. |
 - The exit criterion (design Q10): ≥ 10 days, ≥ 2 mow days per un-held group, ≥ 1 restart, every divergence explained. The season is ending (1× from Oct 15), so the design recommends shadowing into November and cutting over in spring.
 
 ## Done
