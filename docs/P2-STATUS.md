@@ -82,4 +82,4 @@ Read the logbook for `Luba Scheduler` lines:
 
 ## Watch item
 
-After the next real mow completes, read the orchestrator trace the same evening (review M7). M7's cause is now known (above); the trace would confirm the `vol.Invalid` on `calendar.create_event`.
+M7 is explained and fixed in both systems (YAML v3.1.48, deployed 2026-09-27). After the next app-started (adopted) mow, confirm that the YAML wrote its calendar entry and counted the cut. The port does the same in shadow, visible as `shadow: would call calendar.create_event` in the logbook.
