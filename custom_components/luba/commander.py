@@ -27,8 +27,10 @@ _LOGGER = logging.getLogger(__name__)
 ISSUE_YAML_ACTIVE = "yaml_still_active"
 
 # The job parameters Luba fixes on every fresh start. Every field of
-# mammotion.start_mow is sent explicitly (defect 22: an omitted optional key
-# is filled with the schema default and written over the mower's settings).
+# mammotion.start_mow is sent explicitly (defect 22: before Mammotion 0.6.12 an
+# omitted optional key was filled with the schema default and written over the
+# mower's settings; since then it keeps whatever the mower's config entity holds,
+# which Luba does not control either).
 FIXED_JOB = {
     "speed": 0.213,               # 0.7 ft/s; the schema floor is 0.2 m/s
     "border_mode": 0,             # MowOrder.border_first
@@ -36,9 +38,12 @@ FIXED_JOB = {
     "obstacle_laps": 1,           # laps around no-go areas
     "channel_mode": 0,            # CuttingMode.single_grid
     "ultra_wave": 10,             # DetectionStrategy.no_touch
-    "rain_tactics": 0,            # Luba owns rain handling (adverse abort)
     "toward_included_angle": 0,   # second-pass angle; unused in single_grid
     "start_progress": 0,          # a fresh start begins at 0
+    # Added in Mammotion 0.6.11 (pymammotion 0.10). Both off, pymammotion's own
+    # default, so starts route exactly as before the fields existed.
+    "auto_change_direction": 0,   # Luba rotates the angle itself (next mow angle)
+    "ride_boundary_distance": 0.0,  # "Edge Coverage"; 0.0 is off
     # The six below were never sent by the YAML, so the schema defaults applied
     # on every start. Pinned to those same values: explicit, and unchanged.
     "is_mow": True,
