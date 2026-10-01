@@ -22,17 +22,19 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from .const import (AREA_TRANSLATION_KEY, BIND_HASH, BIND_ID, BIND_NAME, BIND_UID,
                     MAMMOTION, MOWER_ROLES, TASK_AREA_SUFFIX)
 
-# mammotion.start_mow's fields as of Mammotion 0.6.9-beta1 (lawn_mower.py
+# mammotion.start_mow's fields as of Mammotion 0.6.12 (lawn_mower.py
 # START_MOW_SCHEMA). Every one is sent explicitly by the commander, because an
-# omitted optional key is filled with the schema default and written over the
-# mower's settings (defect 22). A field outside this set means Mammotion added
-# one whose default we never chose; a pinned field missing means a start would
-# fail validation. Either is a repair issue.
+# omitted optional key takes a value Luba never chose (defect 22). A field
+# outside this set means Mammotion added one whose value we never chose; a
+# pinned field missing means a start would fail validation. Either is a repair
+# issue. 0.6.11 removed rain_tactics and added auto_change_direction and
+# ride_boundary_distance.
 START_MOW_FIELDS = frozenset({
-    "areas", "blade_height", "border_mode", "channel_mode", "channel_width",
-    "collect_grass_frequency", "is_dump", "is_edge", "is_mow", "job_id", "job_version",
-    "modify", "mowing_laps", "obstacle_laps", "plan_only", "rain_tactics", "speed",
-    "start_progress", "toward", "toward_included_angle", "toward_mode", "ultra_wave",
+    "areas", "auto_change_direction", "blade_height", "border_mode", "channel_mode",
+    "channel_width", "collect_grass_frequency", "is_dump", "is_edge", "is_mow", "job_id",
+    "job_version", "modify", "mowing_laps", "obstacle_laps", "plan_only",
+    "ride_boundary_distance", "speed", "start_progress", "toward", "toward_included_angle",
+    "toward_mode", "ultra_wave",
 })
 # Keys HA adds around every entity service schema (targets, and Remove("metadata")).
 _TARGET_KEYS = frozenset({"entity_id", "device_id", "area_id", "floor_id", "label_id",
