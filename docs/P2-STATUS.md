@@ -19,13 +19,14 @@ Read the logbook for `Luba Scheduler` lines:
   - carry-over and adopted-run completions are logged and counted by the port, not the YAML (M7, before v3.1.48 deployed);
   - YAML `Charging` counts as matching port `Paused`.
 - `shadow: would call …` lines show what the port would have commanded.
-- Query (read-only, on the box): `logbook_entry` events whose `shared_data` contains `Luba Scheduler`, joined `events` → `event_types` → `event_data`; the YAML path is `states` for the FSM input_select.
+- Query (read-only, on the box, `sqlite3 -readonly /config/home-assistant_v2.db`): `logbook_entry` events whose `shared_data` contains `Luba Scheduler`, joined `events` → `event_types` → `event_data`; the YAML path is `states` for the FSM input_select.
 
 #### Review log
 | Window | Divergences | Notes |
 |---|---|---|
 | 09-27 21:17 → 09-28 08:00 | none | Idle on both sides. 21:17 `reboot_recover` "dispatching schedule_day" after sunset is the bug beta.2 fixes (harmless: Sunday, no group). 07:08 restart on beta.2: "FSM Idle needs no reconciliation". No `would call` lines. |
 | 09-28 08:00 → 08:48 | none | Mow day, Group A on overseed hold. Both skip it: port `schedule_day` at 08:45:00, YAML at 08:45:10; both stay Idle. The port's `would call` lines are the one-minute "Skipped (overseed)" calendar entry and the "No Mow Today" push, matching what the YAML sent. The port's hold (lawn_growth `mowing_allowed`) and the YAML's (its own toggle) agreed. A held day doesn't count toward the exit criterion. |
+| 09-28 08:48 → 10-01 18:00 | none | Three mow days, all on overseed hold: 09-29 Group B, 09-30 Group A, 10-01 Group B. Each day both sides skip at 08:45:00. The port's `would call` lines are the one-minute "Skipped (overseed)" entry and the "No Mow Today" push, and the YAML wrote the same 08:45–08:46 entry to `calendar.lawn_care_mowing_log`. Both FSMs stayed Idle the whole window. 9 HA restarts, each followed by `reboot_recover: FSM Idle needs no reconciliation`. On 10-01 Mammotion 0.6.12 raised the `start_mow_drift` issue (shadow only logs it); beta.4 (#12) fixes it. No mow day counts toward the exit criterion yet; the restart criterion is met. |
 - The exit criterion (design Q10): ≥ 10 days, ≥ 2 mow days per un-held group, ≥ 1 restart, every divergence explained. The season is ending (1× from Oct 15), so the design recommends shadowing into November and cutting over in spring.
 
 ## Done
