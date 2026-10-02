@@ -5,10 +5,10 @@ The source of truth for the port is `ajbaldwin/homeassistant-config`:
 - the YAML being ported: `packages/luba/scripts.yaml` (`script.luba_orchestrator` + `script.luba_fsm_transition`) and `packages/luba/automations.yaml`
 - the transition contract: `docs/luba_gen3_prd.md` / `docs/luba_fsm_transition_spec.md`
 
-## Where things stand (2026-09-28)
+## Where things stand (2026-10-01)
 
 - **P2 (engine) is done and merged**: PR #5, then #7 (after-sunset fix). 300 tests pass (HA 2026.9.4, Python 3.14, `bash tools/test.sh -q`).
-- **Released:** `v0.2.0-beta.1` (#6) and `v0.2.0-beta.2` (#8), both pre-releases. beta.2 fixes the after-sunset cutoff check (below).
+- **Released:** `v0.2.0-beta.1` (#6) through `v0.2.0-beta.4` (#13), all pre-releases. beta.2 fixes the after-sunset cutoff check (below); beta.3 adds `luba.export_yaml_state`; beta.4 pins `start_mow` to Mammotion 0.6.12's fields (#12). **beta.4 installed 2026-10-01**; the `start_mow_drift` repair issue cleared.
 - **P3 shadow started 2026-09-27 ~21:17** on the box, with beta.1. It is in shadow mode, and Options → Mode points the comparison at the YAML FSM. **beta.2 installed 2026-09-28 06:56**, loaded by an HA restart at 07:05 (the exit criterion's restart).
 - **YAML fixes found by the port, merged in the config repo:** v3.1.48 (#204, M7: the zero-length calendar event; deployed 2026-09-27) and v3.1.49 (#205, the after-sunset cutoff; pulled 2026-09-27 21:30, loaded by the 09-28 07:05 restart).
 
@@ -79,7 +79,7 @@ Read the logbook for `Luba Scheduler` lines:
 ## To do, in order
 
 1. P3: review the `shadow:` logbook lines daily; explain every divergence. A divergence that is a port bug gets a fix, a beta and a note here.
-2. Before P4: merge the config-repo scripts (below) and release the export service in a beta. Done in code: `luba.export_yaml_state` here; `packages/luba_port/luba_port.yaml` in the config repo holds `script.luba_port_cutover` (every import field a template over the YAML helper it replaces) and `script.luba_port_rollback` (export → those helpers, FSM included). Both refuse while any YAML automation is on or the mode isn't shadow; `luba-tests/test_port_cutover.py` pins the field ↔ helper mapping both ways.
+2. ~~Before P4: merge the config-repo scripts and release the export service in a beta.~~ **Done:** config repo #207 (merged 2026-09-28) and beta.3. What shipped: `luba.export_yaml_state` here; `packages/luba_port/luba_port.yaml` in the config repo holds `script.luba_port_cutover` (every import field a template over the YAML helper it replaces) and `script.luba_port_rollback` (export → those helpers, FSM included). Both refuse while any YAML automation is on or the mode isn't shadow; `luba-tests/test_port_cutover.py` pins the field ↔ helper mapping both ways.
 3. P4 cutover (design Q10): evening, mower docked. `git status` in `/config` → disable the 18 `automation.luba_*` (do not delete) → import → repoint the lawn dashboard → Options → Mode → active (needs the confirmation, and is refused while a YAML automation is on) → watch the next 08:45.
 
 ### Known behaviour kept from the YAML
