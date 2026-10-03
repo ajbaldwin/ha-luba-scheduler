@@ -36,6 +36,11 @@ START_MOW_FIELDS = frozenset({
     "ride_boundary_distance", "speed", "start_progress", "toward", "toward_included_angle",
     "toward_mode", "ultra_wave",
 })
+# Fields Mammotion still accepts but ignores, so old automations keep validating
+# (0.6.14 re-added rain_tactics this way). Sending one raises Mammotion's own
+# "retired option" repair, so the commander never does. Neither their presence
+# nor their absence is drift.
+RETIRED_START_MOW_FIELDS = frozenset({"rain_tactics"})
 # Keys HA adds around every entity service schema (targets, and Remove("metadata")).
 _TARGET_KEYS = frozenset({"entity_id", "device_id", "area_id", "floor_id", "label_id",
                           "metadata"})
@@ -150,6 +155,6 @@ def start_mow_drift(hass: HomeAssistant) -> tuple[str, set[str], set[str]]:
     keys = _schema_keys(service.schema)
     if keys is None:
         return "unreadable", set(), set()
-    fields = keys - _TARGET_KEYS
+    fields = keys - _TARGET_KEYS - RETIRED_START_MOW_FIELDS
     added, removed = fields - START_MOW_FIELDS, START_MOW_FIELDS - fields
     return ("drift" if added or removed else "ok"), added, removed
