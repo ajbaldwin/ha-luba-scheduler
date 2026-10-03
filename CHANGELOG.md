@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-beta.5 — Mammotion 0.6.14 support
 - **Fixed: false "fields changed" repair with Mammotion 0.6.14+.** Mammotion 0.6.14 accepts `rain_tactics` on `mammotion.start_mow` again, so old automations keep working, but ignores its value. Luba Scheduler now treats it as a retired field: whether Mammotion's schema has it or not, it is not a change, and Luba still never sends it (sending it would raise Mammotion's own "Retired option used" repair). Starts are no longer refused in active mode.
 
 ## 0.2.0-beta.4 — Mammotion 0.6.11+ support
