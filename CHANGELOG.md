@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- **Fixed: false "fields changed" repair with Mammotion 0.6.14+.** Mammotion 0.6.14 accepts `rain_tactics` on `mammotion.start_mow` again, so old automations keep working, but ignores its value. Luba Scheduler now treats it as a retired field: whether Mammotion's schema has it or not, it is not a change, and Luba still never sends it (sending it would raise Mammotion's own "Retired option used" repair). Starts are no longer refused in active mode.
+
 ## 0.2.0-beta.4 — Mammotion 0.6.11+ support
 - **Updated for Mammotion 0.6.11+.** Mammotion removed `rain_tactics` from `mammotion.start_mow` and added `auto_change_direction` (auto-reverse mowing direction) and `ride_boundary_distance` (Edge Coverage). Luba Scheduler stops sending the first and pins both new ones off, which is Mammotion's own default, so routes are planned as before. The "fields changed" repair issue clears by itself after updating. Rain is still handled by Luba Scheduler's adverse abort; the mower's own rain detection switch now replaces the old plan-level setting.
 

@@ -80,6 +80,19 @@ async def test_drift_absent_ok_added_removed(hass):
     assert start_mow_drift(hass) == ("drift", {"new_thing"}, {"is_dump"})
 
 
+async def test_drift_ignores_retired_rain_tactics(hass):
+    """Mammotion 0.6.14 accepts rain_tactics again (ignored); 0.6.11-0.6.13 don't."""
+    _register_start_mow(hass, START_MOW_FIELDS | {"rain_tactics"})
+    assert start_mow_drift(hass) == ("ok", set(), set())
+
+
+async def test_commander_never_sends_a_retired_field():
+    """Sending one raises Mammotion's own "retired option" repair."""
+    from custom_components.luba.commander import FIXED_JOB
+    from custom_components.luba.mammotion import RETIRED_START_MOW_FIELDS
+    assert not RETIRED_START_MOW_FIELDS & set(FIXED_JOB)
+
+
 async def test_drift_reads_the_ha_2026_9_wrapping(hass):
     """HA 2026.9 wraps the entity-service vol.All in an outer vol.Schema (live 2026.9.4)."""
     async def _handler(call):
