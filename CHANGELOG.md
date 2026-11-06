@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-beta.6 — Home Assistant 2026.11 support
 - **Fixed: false "fields changed" repair on Home Assistant 2026.11.** HA 2026.11 lets every entity action take an `exclude` block that removes entities from its target, so `mammotion.start_mow` appeared to gain an `exclude` field. It is a targeting option, not a mowing setting, and Luba Scheduler now ignores it in the check. The issue clears by itself after updating, and starts are no longer refused in active mode.
 
 ## 0.2.0-beta.5 — Mammotion 0.6.14 support
