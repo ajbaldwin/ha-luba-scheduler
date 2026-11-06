@@ -42,8 +42,10 @@ START_MOW_FIELDS = frozenset({
 # nor their absence is drift.
 RETIRED_START_MOW_FIELDS = frozenset({"rain_tactics"})
 # Keys HA adds around every entity service schema (targets, and Remove("metadata")).
+# HA 2026.11 added "exclude", an optional block that removes entities from the target.
+# Trade-off: a Mammotion job field ever named "exclude" would go unnoticed here.
 _TARGET_KEYS = frozenset({"entity_id", "device_id", "area_id", "floor_id", "label_id",
-                          "metadata"})
+                          "metadata", "exclude"})
 
 
 def unique_name(hass: HomeAssistant, device_id: str) -> str | None:
