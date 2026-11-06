@@ -102,6 +102,12 @@ async def test_drift_reads_the_ha_2026_9_wrapping(hass):
     assert start_mow_drift(hass) == ("ok", set(), set())
 
 
+async def test_drift_ignores_the_ha_2026_11_target_exclude(hass):
+    """HA 2026.11 adds an optional target `exclude` block to every entity service."""
+    _register_start_mow(hass, START_MOW_FIELDS | {"exclude"})
+    assert start_mow_drift(hass) == ("ok", set(), set())
+
+
 async def test_drift_unreadable(hass):
     async def _handler(call):
         return None
