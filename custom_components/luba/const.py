@@ -50,7 +50,8 @@ MOWER_ROLES: dict[str, tuple[str, str]] = {
     ROLE_RTK_FIX: ("sensor", "positioning_mode"),
     ROLE_WORK_AREA: ("sensor", "work_area"),
 }
-AREA_TRANSLATION_KEY = "area"
+# Mammotion keys a zone switch "area_plain" when its name already starts with "Area".
+AREA_TRANSLATION_KEYS = frozenset({"area", "area_plain"})
 TASK_AREA_SUFFIX = "_task_area"
 
 # entry.options — external inputs (not Mammotion; stored as entity_id)

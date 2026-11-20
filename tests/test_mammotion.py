@@ -31,6 +31,18 @@ async def test_area_switches_excludes_area_sensor(hass):
     assert {e.entity_id for e in area_switches(hass, mower.device_id)} == set(mower.zones.values())
 
 
+async def test_area_switches_includes_area_plain_zones(hass):
+    # Mammotion keys a zone "area_plain" instead of "area" when its name already
+    # starts with "Area" (so the UI doesn't print "Area Area 5"). Still a zone.
+    mower = add_mower(hass)
+    plain = er.async_get(hass).async_get_or_create(
+        "switch", c.MAMMOTION, f"{UNIQUE}_1009", device_id=mower.device_id,
+        suggested_object_id="test_mower_area_5", translation_key="area_plain",
+        original_name="Area 5")
+    assert ({e.entity_id for e in area_switches(hass, mower.device_id)}
+            == set(mower.zones.values()) | {plain.entity_id})
+
+
 async def test_binding_survives_reslug_and_same_name_rehash(hass):
     mower = add_mower(hass)
     reg = er.async_get(hass)
