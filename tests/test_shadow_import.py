@@ -2,6 +2,7 @@
 import pytest
 import voluptuous as vol
 from homeassistant.const import EVENT_LOGBOOK_ENTRY
+from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.luba import const as c
@@ -19,7 +20,7 @@ def _attrs(hass):
 
 def _lines(hass):
     lines = []
-    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, lambda e: lines.append(e.data["message"]))
+    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, callback(lambda e: lines.append(e.data["message"])))
     return lines
 
 

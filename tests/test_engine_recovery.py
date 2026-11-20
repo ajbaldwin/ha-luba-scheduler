@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 from homeassistant.const import EVENT_LOGBOOK_ENTRY
+from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 
 from custom_components.luba import const as c
@@ -166,6 +167,7 @@ async def test_the_group_is_stamped_before_scheduled_is_visible(hass, freezer):
     _world, entry = await build(hass, freezer)
     seen = []
 
+    @callback
     def _on_state(event):
         new = event.data["new_state"]
         if event.data["entity_id"] == c.STATE_ENTITY_ID and new and new.state == F.SCHEDULED:
@@ -236,7 +238,7 @@ async def test_every_intent_has_a_handler(hass, freezer):
 async def test_rotation_logs_a_drifted_setting(hass, freezer):
     _world, entry = await build(hass, freezer, at=local(2026, 9, 28, 0, 59))
     lines = []
-    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, lambda e: lines.append(e.data["message"]))
+    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, callback(lambda e: lines.append(e.data["message"])))
     put(entry, settings__angle_1=99)
     await tick(hass, entry, freezer, later(minutes=1))
     assert any("unknown current value (a1=99)" in line for line in lines)

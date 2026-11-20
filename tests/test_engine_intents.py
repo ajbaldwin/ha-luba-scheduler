@@ -1,6 +1,7 @@
 """Branch coverage for each intent, against the fake world (active mode)."""
 from homeassistant.components.button import SERVICE_PRESS
 from homeassistant.const import EVENT_LOGBOOK_ENTRY
+from homeassistant.core import callback
 
 from custom_components.luba import const as c
 from custom_components.luba.engine import fsm as F
@@ -210,7 +211,7 @@ async def test_offline_inside_the_startup_grace_is_ignored(hass, freezer):
 async def test_mode_charging_is_logged_not_acted_on(hass, freezer):
     world, entry = await _running(hass, freezer)
     lines = []
-    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, lambda e: lines.append(e.data["message"]))
+    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, callback(lambda e: lines.append(e.data["message"])))
     world.set_mode(c.MODE_CHARGING)
     await settle(hass, entry, freezer)
     assert fsm(entry) == F.RUNNING
