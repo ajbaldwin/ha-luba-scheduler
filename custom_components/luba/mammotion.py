@@ -19,7 +19,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import (AREA_TRANSLATION_KEY, BIND_HASH, BIND_ID, BIND_NAME, BIND_UID,
+from .const import (AREA_TRANSLATION_KEYS, BIND_HASH, BIND_ID, BIND_NAME, BIND_UID,
                     MAMMOTION, MOWER_ROLES, TASK_AREA_SUFFIX)
 
 # mammotion.start_mow's fields as of Mammotion 0.6.12 (lawn_mower.py
@@ -86,9 +86,9 @@ def derive_roles(hass: HomeAssistant, device_id: str) -> tuple[dict[str, str], l
 
 
 def area_switches(hass: HomeAssistant, device_id: str) -> list[er.RegistryEntry]:
-    """The device's zone switches (translation_key "area", domain switch)."""
+    """The device's zone switches (domain switch, translation_key "area" or "area_plain")."""
     return sorted((e for e in _device_entries(hass, device_id)
-                   if e.domain == "switch" and e.translation_key == AREA_TRANSLATION_KEY),
+                   if e.domain == "switch" and e.translation_key in AREA_TRANSLATION_KEYS),
                   key=lambda e: e.entity_id)
 
 
