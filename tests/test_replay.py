@@ -6,6 +6,7 @@ and names where the port deliberately differs from what the YAML did.
 """
 from dataclasses import replace
 
+from homeassistant.core import callback
 from homeassistant.helpers import issue_registry as ir
 
 from custom_components.luba import const as c
@@ -106,7 +107,7 @@ async def test_0917_in_shadow_never_diverges_from_the_yaml(hass, freezer):
     day = replace(DAY_0917, steps=steps, inputs={**DAY_0917.inputs, yaml: F.IDLE},
                   options={c.CONF_YAML_STATE: yaml, c.CONF_MODE: c.MODE_SHADOW})
     lines = []
-    hass.bus.async_listen("logbook_entry", lambda e: lines.append(e.data.get("message", "")))
+    hass.bus.async_listen("logbook_entry", callback(lambda e: lines.append(e.data.get("message", ""))))
     run = await replay(hass, freezer, day)
     assert run.path == [(frm, to) for _, frm, to in YAML_0917]
     assert not any(line.startswith("shadow: diverged") for line in lines)

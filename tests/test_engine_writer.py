@@ -22,13 +22,14 @@ async def test_every_state_change_has_exactly_one_logbook_line(hass, freezer):
 
     @callback
     def _state(event):
+        if event.data["entity_id"] != c.STATE_ENTITY_ID:
+            return
         new, old = event.data.get("new_state"), event.data.get("old_state")
         if new and old and new.state != old.state:
             states.append((old.state, new.state))
 
     hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, _log)
-    hass.bus.async_listen("state_changed", lambda e: _state(e)
-                          if e.data["entity_id"] == c.STATE_ENTITY_ID else None)
+    hass.bus.async_listen("state_changed", _state)
     await tick(hass, entry, freezer, later(minutes=5))
     await fire_action(hass, entry, world.last_prompt_action(c.ACT_START), freezer)
     await tick(hass, entry, freezer, later(minutes=60))
@@ -46,7 +47,7 @@ async def test_every_state_change_has_exactly_one_logbook_line(hass, freezer):
 async def test_same_state_is_a_noop_without_a_log_line(hass, freezer):
     _world, entry = await build(hass, freezer)
     lines = []
-    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, lambda e: lines.append(e.data["message"]))
+    hass.bus.async_listen(EVENT_LOGBOOK_ENTRY, callback(lambda e: lines.append(e.data["message"])))
     result = await entry.runtime_data.fsm.transition(F.IDLE, "test")
     assert result.status == "noop"
     assert lines == []
