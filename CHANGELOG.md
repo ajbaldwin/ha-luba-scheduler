@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.0-beta.8 — Mammotion 0.6.24 support
+- **Fixed: "Mammotion changed its start command" repair (Removed: `plan_only`) with Mammotion 0.6.24+.** Mammotion removed `plan_only` from `mammotion.start_mow` (its new `plan_route` action replaces it), so a start that sent it would fail. Luba Scheduler no longer sends it, and accepts Mammotion versions with or without it, so starts are no longer refused in active mode.
+
 ## 0.2.0-beta.7 — Zone picker fix
 - **Fixed: zones whose names start with "Area" were missing from the zone picker.** Mammotion keys those zones differently, and Luba Scheduler now lists them, so reopen the Zones options to add them to Group A or B.
 
