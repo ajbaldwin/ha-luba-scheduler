@@ -53,7 +53,6 @@ FIXED_JOB = {
     "job_version": 0,
     "job_id": 0,
     "modify": False,
-    "plan_only": False,
 }
 
 

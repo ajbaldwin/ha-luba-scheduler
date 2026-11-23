@@ -32,15 +32,16 @@ from .const import (AREA_TRANSLATION_KEYS, BIND_HASH, BIND_ID, BIND_NAME, BIND_U
 START_MOW_FIELDS = frozenset({
     "areas", "auto_change_direction", "blade_height", "border_mode", "channel_mode",
     "channel_width", "collect_grass_frequency", "is_dump", "is_edge", "is_mow", "job_id",
-    "job_version", "modify", "mowing_laps", "obstacle_laps", "plan_only",
+    "job_version", "modify", "mowing_laps", "obstacle_laps",
     "ride_boundary_distance", "speed", "start_progress", "toward", "toward_included_angle",
     "toward_mode", "ultra_wave",
 })
-# Fields Mammotion still accepts but ignores, so old automations keep validating
-# (0.6.14 re-added rain_tactics this way). Sending one raises Mammotion's own
-# "retired option" repair, so the commander never does. Neither their presence
-# nor their absence is drift.
-RETIRED_START_MOW_FIELDS = frozenset({"rain_tactics"})
+# Fields the commander never sends, whose presence or absence is not drift.
+# rain_tactics: 0.6.14 re-added it as accepted-but-ignored; sending it raises
+# Mammotion's own "retired option" repair. plan_only: 0.6.24 removed it (plan_route
+# replaces it), so sending it fails validation; older versions default it to False,
+# the value Luba always sent.
+RETIRED_START_MOW_FIELDS = frozenset({"rain_tactics", "plan_only"})
 # Keys HA adds around every entity service schema (targets, and Remove("metadata")).
 # HA 2026.11 added "exclude", an optional block that removes entities from the target.
 # Trade-off: a Mammotion job field ever named "exclude" would go unnoticed here.
