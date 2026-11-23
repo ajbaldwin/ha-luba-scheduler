@@ -98,10 +98,21 @@ async def test_drift_ignores_retired_rain_tactics(hass):
     assert start_mow_drift(hass) == ("ok", set(), set())
 
 
+async def test_drift_ignores_removed_plan_only(hass):
+    """Mammotion 0.6.24 removed plan_only; 0.6.12-0.6.23 still have it. Neither is drift."""
+    _register_start_mow(hass, START_MOW_FIELDS - {"plan_only"})
+    assert start_mow_drift(hass) == ("ok", set(), set())
+    hass.services.async_remove(c.MAMMOTION, "start_mow")
+    _register_start_mow(hass, START_MOW_FIELDS | {"plan_only"})
+    assert start_mow_drift(hass) == ("ok", set(), set())
+
+
 async def test_commander_never_sends_a_retired_field():
-    """Sending one raises Mammotion's own "retired option" repair."""
+    """rain_tactics raises Mammotion's own "retired option" repair; plan_only fails
+    validation on 0.6.24+ (omitted, older versions default it to False)."""
     from custom_components.luba.commander import FIXED_JOB
     from custom_components.luba.mammotion import RETIRED_START_MOW_FIELDS
+    assert {"rain_tactics", "plan_only"} <= RETIRED_START_MOW_FIELDS
     assert not RETIRED_START_MOW_FIELDS & set(FIXED_JOB)
 
 
