@@ -111,6 +111,11 @@ class Listeners:
 
     @callback
     def _on_readiness_tick(self, _now: datetime) -> None:
+        # Out of season the mower is put away. Readiness still turns off with the
+        # season switch (the coordinator recomputes on it); only the tick and its
+        # wake-the-mower refresh stand down. An unreadable switch keeps ticking.
+        if self.co.readings().season_on is False:
+            return
         self._dispatch("evaluate_readiness")                          # #6
 
     @callback
