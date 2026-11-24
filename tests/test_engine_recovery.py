@@ -230,14 +230,19 @@ async def test_readiness_refreshes_a_stale_camera_after_sunrise(hass, freezer):
 
 
 async def test_readiness_tick_stands_down_out_of_season(hass, freezer):
-    _world, entry = await build(hass, freezer)
+    world, entry = await build(hass, freezer)
+    refreshed = []
+    hass.services.async_register("homeassistant", "update_entity",
+                                 lambda call: refreshed.append(call.data["entity_id"]))
     handled = entry.runtime_data.dispatcher.handled
+    assert hass.states.get("binary_sensor.luba_ready").state == "on"
     hass.states.async_set("input_boolean.season", "off")
     await settle(hass, entry, freezer)
     assert hass.states.get("binary_sensor.luba_ready").state == "off"   # no tick needed for that
+    hass.states.async_set(world.mower.roles[c.ROLE_CAMERA], "Dark")    # would trigger a wake poll
     handled.clear()
     await tick(hass, entry, freezer, later(minutes=15))
-    assert "evaluate_readiness" not in handled
+    assert "evaluate_readiness" not in handled and refreshed == []
     hass.states.async_set("input_boolean.season", "unavailable")          # only "off" stands down
     await tick(hass, entry, freezer, later(minutes=15))
     assert "evaluate_readiness" in handled
