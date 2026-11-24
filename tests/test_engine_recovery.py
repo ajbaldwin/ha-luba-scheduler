@@ -229,6 +229,20 @@ async def test_readiness_refreshes_a_stale_camera_after_sunrise(hass, freezer):
     assert hass.states.get("binary_sensor.luba_ready").state == "on"
 
 
+async def test_readiness_tick_stands_down_out_of_season(hass, freezer):
+    _world, entry = await build(hass, freezer)
+    handled = entry.runtime_data.dispatcher.handled
+    hass.states.async_set("input_boolean.season", "off")
+    await settle(hass, entry, freezer)
+    assert hass.states.get("binary_sensor.luba_ready").state == "off"   # no tick needed for that
+    handled.clear()
+    await tick(hass, entry, freezer, later(minutes=15))
+    assert "evaluate_readiness" not in handled
+    hass.states.async_set("input_boolean.season", "unavailable")          # only "off" stands down
+    await tick(hass, entry, freezer, later(minutes=15))
+    assert "evaluate_readiness" in handled
+
+
 async def test_every_intent_has_a_handler(hass, freezer):
     _world, entry = await build(hass, freezer)
     orchestrator = entry.runtime_data.orchestrator
