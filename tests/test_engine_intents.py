@@ -322,6 +322,26 @@ async def test_adverse_tick_catches_a_run_started_into_danger(hass, freezer):
     assert [n for n, _ in world.calls] == ["lawn_mower.dock"]
 
 
+async def test_adverse_abort_stands_down_out_of_season(hass, freezer):
+    world, entry = await build(hass, freezer, at=local(2026, 9, 27, 10, 0))
+    hass.states.async_set("input_boolean.season", "off")
+    world.mow_manually("Back")
+    await settle(hass, entry, freezer)
+    world.rain()                                                    # the edge trigger
+    await tick(hass, entry, freezer, later(minutes=5))              # and the periodic re-check
+    assert world.calls == [] and world.notifications == []
+
+
+async def test_adverse_abort_stays_armed_when_the_season_is_unreadable(hass, freezer):
+    world, entry = await build(hass, freezer, at=local(2026, 9, 27, 10, 0))
+    hass.states.async_set("input_boolean.season", "unavailable")    # fail safe: only "off" stands down
+    world.mow_manually("Back")
+    await settle(hass, entry, freezer)
+    world.rain()
+    await settle(hass, entry, freezer)
+    assert [n for n, _ in world.calls] == ["lawn_mower.dock"]
+
+
 # ---- errors, toggles, rotation, the gate alert ---------------------------------------------
 
 async def test_clear_error_from_the_button_and_the_notification(hass, freezer):

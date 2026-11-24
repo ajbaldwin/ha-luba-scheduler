@@ -764,6 +764,10 @@ class Orchestrator:
             self._dispatch("prompt_user")
 
     async def adverse_abort(self) -> None:
+        # Out of season the mower is put away. Only an explicit "off" stands the
+        # watcher down: an unreadable season switch keeps it armed (fail safe).
+        if self.co.readings().season_on is False:
+            return
         if not self.snap().adverse or not self.on_lawn():
             return
         reason = self.adverse_reason()
