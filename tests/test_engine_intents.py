@@ -330,6 +330,9 @@ async def test_adverse_abort_stands_down_out_of_season(hass, freezer):
     world.rain()                                                    # the edge trigger
     await tick(hass, entry, freezer, later(minutes=5))              # and the periodic re-check
     assert world.calls == [] and world.notifications == []
+    hass.states.async_set("input_boolean.season", "on")             # no edge: the tick re-arms it
+    await tick(hass, entry, freezer, later(minutes=5))
+    assert [n for n, _ in world.calls] == ["lawn_mower.dock"]
 
 
 async def test_adverse_abort_stays_armed_when_the_season_is_unreadable(hass, freezer):
