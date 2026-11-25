@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0-beta.9 — Quiet out of season
+- **Changed: the weather abort no longer docks the mower or notifies while your mowing season switch is off**, so a run you start by hand out of season gets no weather abort, and a season switch that reads unavailable keeps the abort on.
+- **Changed: the 15-minute readiness check no longer runs, or wakes the mower, while your mowing season switch is off**, and readiness still turns off the moment you switch the season off.
+
 ## 0.2.0-beta.8 — Mammotion 0.6.24 support
 - **Fixed: "Mammotion changed its start command" repair (Removed: `plan_only`) with Mammotion 0.6.24+.** Mammotion removed `plan_only` from `mammotion.start_mow` (its new `plan_route` action replaces it), so a start that sent it would fail. Luba Scheduler no longer sends it, and accepts Mammotion versions with or without it, so starts are no longer refused in active mode.
 
